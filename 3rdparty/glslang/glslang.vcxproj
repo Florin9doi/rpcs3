@@ -47,9 +47,9 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <NMakeBuildCommandLine>$(CmakeReleaseCLI)
       msbuild.exe build\ALL_BUILD.vcxproj /t:build /p:Configuration=Release /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m</NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>$(CmakeReleaseCLI)
+    <NMakeReBuildCommandLine>$(CmakeReleaseCLI) --fresh
       msbuild.exe build\ALL_BUILD.vcxproj /t:rebuild /p:Configuration=Release /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m</NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>$(CmakeReleaseCLI)
+    <NMakeCleanCommandLine>$(CmakeReleaseCLI) --fresh
       msbuild.exe build\ALL_BUILD.vcxproj /t:clean /p:Configuration=Release /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m
       rmdir /s /q build
     </NMakeCleanCommandLine>
@@ -58,10 +58,10 @@
     <NMakeBuildCommandLine>$(CmakeDebugCLI)
       msbuild.exe build\ALL_BUILD.vcxproj /t:build /p:Configuration=Debug /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m
     </NMakeBuildCommandLine>
-    <NMakeReBuildCommandLine>$(CmakeDebugCLI)
+    <NMakeReBuildCommandLine>$(CmakeDebugCLI) --fresh
       msbuild.exe build\ALL_BUILD.vcxproj /t:rebuild /p:Configuration=Debug /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m
     </NMakeReBuildCommandLine>
-    <NMakeCleanCommandLine>$(CmakeDebugCLI)
+    <NMakeCleanCommandLine>$(CmakeDebugCLI) --fresh
       msbuild.exe build\ALL_BUILD.vcxproj /t:clean /p:Configuration=Debug /p:ForceImportBeforeCppTargets="$(PropsAbsPath)" /m
       rmdir /s /q build
     </NMakeCleanCommandLine>
