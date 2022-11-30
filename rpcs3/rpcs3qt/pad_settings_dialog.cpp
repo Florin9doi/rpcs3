@@ -78,11 +78,11 @@ pad_settings_dialog::pad_settings_dialog(std::shared_ptr<gui_settings> gui_setti
 	if (game)
 	{
 		m_title_id = game->serial;
-		setWindowTitle(tr("Gamepad Settings: [%0] %1").arg(qstr(game->serial)).arg(qstr(game->name).simplified()));
+		setWindowTitle(tr("Controller Settings: [%0] %1").arg(qstr(game->serial)).arg(qstr(game->name).simplified()));
 	}
 	else
 	{
-		setWindowTitle(tr("Gamepad Settings"));
+		setWindowTitle(tr("Controller Settings"));
 	}
 
 	// Load input configs
@@ -132,6 +132,12 @@ pad_settings_dialog::pad_settings_dialog(std::shared_ptr<gui_settings> gui_setti
 		{
 			ui->tabWidget->addTab(new QWidget, tab_title);
 		}
+	}
+	// Create tab widget for 2 USB ports
+	for (int i = 1; i <= 2; i++)
+	{
+		const QString tab_title = tr("USB %0").arg(i);
+		ui->tabWidget->addTab(new QWidget, tab_title);
 	}
 
 	// On tab change: move the layout to the new tab and refresh
@@ -684,32 +690,32 @@ void pad_settings_dialog::ReloadButtons()
 
 	cfg_pad& cfg = GetPlayerConfig();
 
-	updateButton(button_ids::id_pad_lstick_left, ui->b_lstick_left, &cfg.ls_left);
-	updateButton(button_ids::id_pad_lstick_down, ui->b_lstick_down, &cfg.ls_down);
-	updateButton(button_ids::id_pad_lstick_right, ui->b_lstick_right, &cfg.ls_right);
-	updateButton(button_ids::id_pad_lstick_up, ui->b_lstick_up, &cfg.ls_up);
-
 	updateButton(button_ids::id_pad_left, ui->b_left, &cfg.left);
 	updateButton(button_ids::id_pad_down, ui->b_down, &cfg.down);
 	updateButton(button_ids::id_pad_right, ui->b_right, &cfg.right);
 	updateButton(button_ids::id_pad_up, ui->b_up, &cfg.up);
 
-	updateButton(button_ids::id_pad_l1, ui->b_shift_l1, &cfg.l1);
-	updateButton(button_ids::id_pad_l2, ui->b_shift_l2, &cfg.l2);
-	updateButton(button_ids::id_pad_l3, ui->b_shift_l3, &cfg.l3);
-
 	updateButton(button_ids::id_pad_start, ui->b_start, &cfg.start);
 	updateButton(button_ids::id_pad_select, ui->b_select, &cfg.select);
 	updateButton(button_ids::id_pad_ps, ui->b_ps, &cfg.ps);
-
-	updateButton(button_ids::id_pad_r1, ui->b_shift_r1, &cfg.r1);
-	updateButton(button_ids::id_pad_r2, ui->b_shift_r2, &cfg.r2);
-	updateButton(button_ids::id_pad_r3, ui->b_shift_r3, &cfg.r3);
 
 	updateButton(button_ids::id_pad_square, ui->b_square, &cfg.square);
 	updateButton(button_ids::id_pad_cross, ui->b_cross, &cfg.cross);
 	updateButton(button_ids::id_pad_circle, ui->b_circle, &cfg.circle);
 	updateButton(button_ids::id_pad_triangle, ui->b_triangle, &cfg.triangle);
+
+	updateButton(button_ids::id_pad_lstick_left, ui->b_lstick_left, &cfg.ls_left);
+	updateButton(button_ids::id_pad_lstick_down, ui->b_lstick_down, &cfg.ls_down);
+	updateButton(button_ids::id_pad_lstick_right, ui->b_lstick_right, &cfg.ls_right);
+	updateButton(button_ids::id_pad_lstick_up, ui->b_lstick_up, &cfg.ls_up);
+
+	updateButton(button_ids::id_pad_l1, ui->b_shift_l1, &cfg.l1);
+	updateButton(button_ids::id_pad_l2, ui->b_shift_l2, &cfg.l2);
+	updateButton(button_ids::id_pad_l3, ui->b_shift_l3, &cfg.l3);
+
+	updateButton(button_ids::id_pad_r1, ui->b_shift_r1, &cfg.r1);
+	updateButton(button_ids::id_pad_r2, ui->b_shift_r2, &cfg.r2);
+	updateButton(button_ids::id_pad_r3, ui->b_shift_r3, &cfg.r3);
 
 	updateButton(button_ids::id_pad_rstick_left, ui->b_rstick_left, &cfg.rs_left);
 	updateButton(button_ids::id_pad_rstick_down, ui->b_rstick_down, &cfg.rs_down);
@@ -1317,6 +1323,16 @@ void pad_settings_dialog::OnTabChanged(int index)
 
 	// Move layout to the new tab
 	ui->tabWidget->widget(index)->setLayout(ui->mainLayout);
+	cfg_log.success("Tab changed : %d", index);
+	if (index >= 7)
+	{
+		ui->stackedWidget->setCurrentWidget(ui->usb);
+	}
+	else
+	{
+		ui->stackedWidget->setCurrentWidget(ui->ds3);
+	}
+
 
 	// Refresh handlers
 	RefreshHandlers();

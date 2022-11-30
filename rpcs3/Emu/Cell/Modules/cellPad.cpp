@@ -218,7 +218,7 @@ void clear_pad_buffer(const std::shared_ptr<Pad>& pad)
 
 error_code cellPadClearBuf(u32 port_no)
 {
-	sys_io.trace("cellPadClearBuf(port_no=%d)", port_no);
+	sys_io.warning("cellPadClearBuf(port_no=%d)", port_no);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -579,7 +579,7 @@ void pad_get_data(u32 port_no, CellPadData* data, bool get_periph_data = false)
 
 error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
 {
-	sys_io.trace("cellPadGetData(port_no=%d, data=*0x%x)", port_no, data);
+	sys_io.warning("cellPadGetData(port_no=%d, data=*0x%x)", port_no, data);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -602,12 +602,34 @@ error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
 		return not_an_error(CELL_PAD_ERROR_NO_DEVICE);
 
 	pad_get_data(port_no, data.get_ptr());
+	sys_io.warning("cellPadGetData(port_no=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
+		port_no,
+		data->len,
+		data->button[0],
+		data->button[1],
+		data->button[2],
+		data->button[3],
+
+		data->button[4],
+		data->button[5],
+		data->button[6],
+		data->button[7],
+
+		data->button[8],
+		data->button[9],
+		data->button[0xa],
+		data->button[0xb],
+
+		data->button[0xc],
+		data->button[0xd],
+		data->button[0xe],
+		data->button[0xf]);
 	return CELL_OK;
 }
 
 error_code cellPadPeriphGetInfo(vm::ptr<CellPadPeriphInfo> info)
 {
-	sys_io.trace("cellPadPeriphGetInfo(info=*0x%x)", info);
+	sys_io.warning("cellPadPeriphGetInfo(info=*0x%x)", info);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -658,7 +680,7 @@ error_code cellPadPeriphGetInfo(vm::ptr<CellPadPeriphInfo> info)
 
 error_code cellPadPeriphGetData(u32 port_no, vm::ptr<CellPadPeriphData> data)
 {
-	sys_io.trace("cellPadPeriphGetData(port_no=%d, data=*0x%x)", port_no, data);
+	sys_io.warning("cellPadPeriphGetData(port_no=%d, data=*0x%x)", port_no, data);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -720,7 +742,7 @@ error_code cellPadGetRawData(u32 port_no, vm::ptr<CellPadData> data)
 
 error_code cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<CellPadData> data)
 {
-	sys_io.trace("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
+	//sys_io.warning("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
 
 	// TODO: This is used just to get data from a BD/CEC remote,
 	// but if the port isnt a remote, device type is set to CELL_PAD_DEV_TYPE_STANDARD and just regular cellPadGetData is returned
@@ -735,6 +757,30 @@ error_code cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<Ce
 		*device_type = CELL_PAD_DEV_TYPE_STANDARD;
 	}
 
+	sys_io.warning("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
+		port_no, *device_type,
+		data->len,
+		data->button[0],
+		data->button[1],
+		data->button[2],
+		data->button[3],
+
+		data->button[4],
+		data->button[5],
+		data->button[6],
+		data->button[7],
+
+		data->button[8],
+		data->button[9],
+		data->button[0xa],
+		data->button[0xb],
+
+		data->button[0xc],
+		data->button[0xd],
+		data->button[0xe],
+		data->button[0xf]
+	);
+
 	// Set BD data
 	data->button[24] = 0x0;
 	data->button[25] = 0x0;
@@ -744,7 +790,7 @@ error_code cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<Ce
 
 error_code cellPadSetActDirect(u32 port_no, vm::ptr<CellPadActParam> param)
 {
-	sys_io.trace("cellPadSetActDirect(port_no=%d, param=*0x%x)", port_no, param);
+	sys_io.warning("cellPadSetActDirect(port_no=%d, param=*0x%x)", port_no, param);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -788,7 +834,7 @@ error_code cellPadSetActDirect(u32 port_no, vm::ptr<CellPadActParam> param)
 
 error_code cellPadGetInfo(vm::ptr<CellPadInfo> info)
 {
-	sys_io.trace("cellPadGetInfo(info=*0x%x)", info);
+	sys_io.warning("cellPadGetInfo(info=*0x%x)", info);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -833,7 +879,7 @@ error_code cellPadGetInfo(vm::ptr<CellPadInfo> info)
 
 error_code cellPadGetInfo2(vm::ptr<CellPadInfo2> info)
 {
-	sys_io.trace("cellPadGetInfo2(info=*0x%x)", info);
+	//sys_io.warning("cellPadGetInfo2(info=*0x%x)", info);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -873,6 +919,11 @@ error_code cellPadGetInfo2(vm::ptr<CellPadInfo2> info)
 		info->device_capability[i] = pads[i]->m_device_capability;
 		info->device_type[i] = pads[i]->m_device_type;
 
+		sys_io.warning("cellPadGetInfo2(i=%d, device_type=%d)",
+			i,
+			info->device_type[i]
+		);
+
 		now_connect++;
 	}
 
@@ -882,7 +933,7 @@ error_code cellPadGetInfo2(vm::ptr<CellPadInfo2> info)
 
 error_code cellPadGetCapabilityInfo(u32 port_no, vm::ptr<CellPadCapabilityInfo> info)
 {
-	sys_io.trace("cellPadGetCapabilityInfo(port_no=%d, data_addr:=0x%x)", port_no, info.addr());
+	sys_io.warning("cellPadGetCapabilityInfo(port_no=%d, data_addr:=0x%x)", port_no, info.addr());
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -913,7 +964,7 @@ error_code cellPadGetCapabilityInfo(u32 port_no, vm::ptr<CellPadCapabilityInfo> 
 
 error_code cellPadSetPortSetting(u32 port_no, u32 port_setting)
 {
-	sys_io.trace("cellPadSetPortSetting(port_no=%d, port_setting=0x%x)", port_no, port_setting);
+	sys_io.warning("cellPadSetPortSetting(port_no=%d, port_setting=0x%x)", port_no, port_setting);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -938,7 +989,7 @@ error_code cellPadSetPortSetting(u32 port_no, u32 port_setting)
 
 error_code cellPadInfoPressMode(u32 port_no)
 {
-	sys_io.trace("cellPadInfoPressMode(port_no=%d)", port_no);
+	sys_io.warning("cellPadInfoPressMode(port_no=%d)", port_no);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -965,7 +1016,7 @@ error_code cellPadInfoPressMode(u32 port_no)
 
 error_code cellPadInfoSensorMode(u32 port_no)
 {
-	sys_io.trace("cellPadInfoSensorMode(port_no=%d)", port_no);
+	sys_io.warning("cellPadInfoSensorMode(port_no=%d)", port_no);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -992,7 +1043,7 @@ error_code cellPadInfoSensorMode(u32 port_no)
 
 error_code cellPadSetPressMode(u32 port_no, u32 mode)
 {
-	sys_io.trace("cellPadSetPressMode(port_no=%d, mode=%d)", port_no, mode);
+	sys_io.warning("cellPadSetPressMode(port_no=%d, mode=%d)", port_no, mode);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1026,7 +1077,7 @@ error_code cellPadSetPressMode(u32 port_no, u32 mode)
 
 error_code cellPadSetSensorMode(u32 port_no, u32 mode)
 {
-	sys_io.trace("cellPadSetSensorMode(port_no=%d, mode=%d)", port_no, mode);
+	sys_io.warning("cellPadSetSensorMode(port_no=%d, mode=%d)", port_no, mode);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1085,7 +1136,29 @@ error_code cellPadLddRegisterController()
 
 error_code cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 {
-	sys_io.trace("cellPadLddDataInsert(handle=%d, data=*0x%x)", handle, data);
+	//sys_io.warning("cellPadLddDataInsert(handle=%d, data=*0x%x)", handle, data);
+	sys_io.warning("cellPadLddDataInsert(handle=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)", handle,
+		data->len,
+		data->button[0],
+		data->button[1],
+		data->button[2],
+		data->button[3],
+
+		data->button[4],
+		data->button[5],
+		data->button[6],
+		data->button[7],
+
+		data->button[8],
+		data->button[9],
+		data->button[0xa],
+		data->button[0xb],
+
+		data->button[0xc],
+		data->button[0xd],
+		data->button[0xe],
+		data->button[0xf]
+	);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1097,7 +1170,7 @@ error_code cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 	const auto handler = pad::get_current_handler();
 	auto& pads = handler->GetPads();
 
-	if (handle < 0 || static_cast<u32>(handle) >= pads.size() || !data) // data == NULL stalls on decr
+	if (handle < 0 || static_cast<u32>(handle) >= CELL_PAD_MAX_PORT_NUM || !data) // data == NULL stalls on decr
 		return CELL_PAD_ERROR_INVALID_PARAMETER;
 
 	if (!pads[handle]->ldd)
@@ -1110,7 +1183,7 @@ error_code cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 
 error_code cellPadLddGetPortNo(s32 handle)
 {
-	sys_io.trace("cellPadLddGetPortNo(handle=%d)", handle);
+	sys_io.warning("cellPadLddGetPortNo(handle=%d)", handle);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1122,7 +1195,7 @@ error_code cellPadLddGetPortNo(s32 handle)
 	const auto handler = pad::get_current_handler();
 	auto& pads = handler->GetPads();
 
-	if (handle < 0 || static_cast<u32>(handle) >= pads.size())
+	if (handle < 0 || static_cast<u32>(handle) >= CELL_PAD_MAX_PORT_NUM)
 		return CELL_PAD_ERROR_INVALID_PARAMETER;
 
 	if (!pads[handle]->ldd)
@@ -1146,7 +1219,7 @@ error_code cellPadLddUnregisterController(s32 handle)
 	const auto handler = pad::get_current_handler();
 	const auto& pads = handler->GetPads();
 
-	if (handle < 0 || static_cast<u32>(handle) >= pads.size())
+	if (handle < 0 || static_cast<u32>(handle) >= CELL_PAD_MAX_PORT_NUM)
 		return CELL_PAD_ERROR_INVALID_PARAMETER;
 
 	if (!pads[handle]->ldd)
@@ -1183,7 +1256,7 @@ s32 sys_io_3733EA3C(u32 port_no, vm::ptr<u32> device_type, vm::ptr<CellPadData> 
 {
 	// Used by the ps1 emulator built into the firmware
 	// Seems to call the same function that getdataextra does
-	sys_io.trace("sys_io_3733EA3C(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
+	sys_io.warning("sys_io_3733EA3C(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
 	return cellPadGetDataExtra(port_no, device_type, data);
 }
 

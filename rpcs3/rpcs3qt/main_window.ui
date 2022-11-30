@@ -525,7 +525,7 @@
   </action>
   <action name="confPadsAct">
    <property name="text">
-    <string>Pads</string>
+    <string>Controllers</string>
    </property>
    <property name="iconText">
     <string>Pads</string>
@@ -1003,7 +1003,7 @@
      <normaloff>:/Icons/controllers.png</normaloff>:/Icons/controllers.png</iconset>
    </property>
    <property name="text">
-    <string>Pads</string>
+    <string>Controllers</string>
    </property>
    <property name="toolTip">
     <string>Configure controls</string>

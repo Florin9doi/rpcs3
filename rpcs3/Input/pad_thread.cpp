@@ -141,7 +141,7 @@ void pad_thread::Init()
 	std::shared_ptr<NullPadHandler> nullpad = std::make_shared<NullPadHandler>(true);
 	handlers.emplace(pad_handler::null, nullpad);
 
-	for (u32 i = 0; i < CELL_PAD_MAX_PORT_NUM; i++) // max 7 pads
+	for (u32 i = 0; i < 9; i++) // max 7 pads
 	{
 		cfg_player* cfg = g_cfg_input.player[i];
 		std::shared_ptr<PadHandlerBase> cur_pad_handler;
@@ -390,7 +390,7 @@ void pad_thread::operator()()
 		{
 			bool ps_button_pressed = false;
 
-			for (usz i = 0; i < m_pads.size() && !ps_button_pressed; i++)
+			for (usz i = 0; i < CELL_PAD_MAX_PORT_NUM && !ps_button_pressed; i++)
 			{
 				if (i > 0 && g_cfg.io.lock_overlay_input_to_player_one)
 					break;

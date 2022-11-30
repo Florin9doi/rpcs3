@@ -130,7 +130,7 @@ void usb_device_gametablet::control_transfer(u8 bmRequestType, u8 bRequest, u16 
 	transfer->fake            = true;
 	transfer->expected_count  = buf_size;
 	transfer->expected_result = HC_CC_NOERR;
-	transfer->expected_time   = get_timestamp() + 100;
+	transfer->expected_time   = get_timestamp() + 4000;
 
 	// Control transfers are nearly instant
 	switch (bmRequestType)
@@ -259,7 +259,7 @@ void usb_device_gametablet::interrupt_transfer(u32 buf_size, u8* buf, u32 /*endp
 			}
 		}
 	}
-
+	
 	if (!up && !right && !down && !left)
 		gt.dpad = Dpad_None;
 	else if (up && !left && !right)

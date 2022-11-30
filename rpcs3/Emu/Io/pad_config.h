@@ -131,8 +131,10 @@ struct cfg_input final : cfg::node
 	cfg_player player5{ this, "Player 5 Input", pad_handler::null };
 	cfg_player player6{ this, "Player 6 Input", pad_handler::null };
 	cfg_player player7{ this, "Player 7 Input", pad_handler::null };
+	cfg_player usb1{ this, "USB 1 Input", pad_handler::null };
+	cfg_player usb2{ this, "USB 2 Input", pad_handler::null };
 
-	std::array<cfg_player*, 7> player{ &player1, &player2, &player3, &player4, &player5, &player6, &player7 }; // Thanks gcc!
+	std::array<cfg_player*, 9> player{ &player1, &player2, &player3, &player4, &player5, &player6, &player7, &usb1, &usb2 }; // Thanks gcc!
 
 	bool load(const std::string& title_id = "", const std::string& profile = "", bool strict = false);
 	void save(const std::string& title_id, const std::string& profile = "") const;

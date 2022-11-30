@@ -111,8 +111,10 @@ protected:
 	};
 
 	static constexpr u32 MAX_GAMEPADS = 7;
+	static constexpr u32 MAX_USB = 2;
+	static constexpr u32 MAX_CONTROLLERS = MAX_GAMEPADS + MAX_USB;
 
-	std::array<bool, MAX_GAMEPADS> last_connection_status{{ false, false, false, false, false, false, false }};
+	std::array<bool, MAX_CONTROLLERS> last_connection_status{{ false, false, false, false, false, false, false, false, false }};
 
 	std::string m_name_string;
 	usz m_max_devices = 0;
@@ -128,7 +130,7 @@ protected:
 	bool b_has_motion = false;
 	bool b_has_config = false;
 	bool b_has_pressure_intensity_button = true;
-	std::array<cfg_pad, MAX_GAMEPADS> m_pad_configs;
+	std::array<cfg_pad, MAX_CONTROLLERS> m_pad_configs;
 	std::vector<pad_ensemble> m_bindings;
 	std::unordered_map<u32, std::string> button_list;
 	std::set<u32> blacklist;

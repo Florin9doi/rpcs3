@@ -252,7 +252,7 @@ bool PadHandlerBase::has_pressure_intensity_button() const
 
 void PadHandlerBase::init_configs()
 {
-	for (u32 i = 0; i < MAX_GAMEPADS; i++)
+	for (u32 i = 0; i < MAX_CONTROLLERS; i++)
 	{
 		init_config(&m_pad_configs[i]);
 	}
@@ -262,7 +262,7 @@ cfg_pad* PadHandlerBase::get_config(const std::string& pad_id)
 {
 	int index = 0;
 
-	for (uint i = 0; i < MAX_GAMEPADS; i++)
+	for (uint i = 0; i < MAX_CONTROLLERS; i++)
 	{
 		if (g_cfg_input.player[i]->handler == m_type)
 		{
