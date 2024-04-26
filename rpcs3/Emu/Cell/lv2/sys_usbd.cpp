@@ -24,6 +24,7 @@
 #include "Emu/Io/buzz_config.h"
 #include "Emu/Io/GameTablet.h"
 #include "Emu/Io/GunCon3.h"
+#include "Emu/Io/TopShotElite.h"
 #include "Emu/Io/Turntable.h"
 #include "Emu/Io/turntable_config.h"
 #include "Emu/Io/RB3MidiKeyboard.h"
@@ -863,6 +864,13 @@ void connect_usb_controller(u8 index, input::product_type type)
 		{
 			sys_usbd.success("Adding emulated uDraw GameTablet (controller %d)", index);
 			std::shared_ptr<usb_device> dev = std::make_shared<usb_device_gametablet>(index, usbh.get_new_location());
+			usbh.connect_usb_device(dev, true);
+			usbh.pad_to_usb.emplace(index, std::pair(type, dev));
+		}
+		if (type == input::product_type::top_shot_elite)
+		{
+			sys_usbd.success("Adding emulated Top Shot Elite (controller %d)", index);
+			std::shared_ptr<usb_device> dev = std::make_shared<usb_device_topshotelite>(index, usbh.get_new_location());
 			usbh.connect_usb_device(dev, true);
 			usbh.pad_to_usb.emplace(index, std::pair(type, dev));
 		}

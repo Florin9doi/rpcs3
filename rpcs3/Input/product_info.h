@@ -20,6 +20,7 @@ namespace input
 		ride_skateboard,
 		guncon_3,
 		udraw_gametablet,
+		top_shot_elite,
 	};
 
 	enum vendor_id
@@ -46,6 +47,7 @@ namespace input
 		ride_skateboard              = 0x0400, // Tony Hawk RIDE Skateboard Controller
 		guncon_3                     = 0x0800, // GunCon 3 Controller
 		udraw_gametablet             = 0xCB17, // uDraw GameTablet Controller
+		top_shot_elite               = 0x04A0, // Top Shot Elite Controller
 	};
 
 	struct product_info
