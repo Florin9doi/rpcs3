@@ -480,6 +480,39 @@ void pad_get_data(u32 port_no, CellPadData* data, bool get_periph_data = false)
 		}
 	}
 
+	//switch (pad->m_class_type)
+	//{
+	//case CELL_PAD_PCLASS_TYPE_BUZZ:
+	//case CELL_PAD_PCLASS_TYPE_GAMETABLET:
+	//{
+	//	data->button[CELL_PAD_BTN_OFFSET_ANALOG_RIGHT_X] = 0x80;
+	//	data->button[CELL_PAD_BTN_OFFSET_ANALOG_RIGHT_Y] = 0x80;
+	//	data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_X] = 0x80;
+	//	data->button[CELL_PAD_BTN_OFFSET_ANALOG_LEFT_Y] = 0x80;
+
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_RIGHT] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_LEFT] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_UP] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_DOWN] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_TRIANGLE] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_CIRCLE] = 0x00;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_CROSS] = 0x72;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_SQUARE] = 0x00;
+
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_L1] = 0x0f;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_R1] = 0x0f;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_L2] = 0xff;
+	//	data->button[CELL_PAD_BTN_OFFSET_PRESS_R2] = 0xff;
+
+	//	data->button[CELL_PAD_BTN_OFFSET_SENSOR_X] = 0x0200;
+	//	data->button[CELL_PAD_BTN_OFFSET_SENSOR_Y] = 0x0200;
+	//	data->button[CELL_PAD_BTN_OFFSET_SENSOR_Z] = 0x0200;
+	//	data->button[CELL_PAD_BTN_OFFSET_SENSOR_G] = 0x0200;
+
+	//	return;
+	//}
+	//}
+
 	if (!get_periph_data || data->len <= CELL_PAD_LEN_CHANGE_SENSOR_ON)
 	{
 		return;
@@ -577,9 +610,9 @@ void pad_get_data(u32 port_no, CellPadData* data, bool get_periph_data = false)
 	}
 }
 
-error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
+error_code cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<CellPadData> data)
 {
-	sys_io.warning("cellPadGetData(port_no=%d, data=*0x%x)", port_no, data);
+	// sys_io.warning("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -602,7 +635,16 @@ error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
 		return not_an_error(CELL_PAD_ERROR_NO_DEVICE);
 
 	pad_get_data(port_no, data.get_ptr());
-	sys_io.warning("cellPadGetData(port_no=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
+
+	if (device_type) // no error is returned on NULL
+	{
+		if (pad->ldd)
+			*device_type = CELL_PAD_DEV_TYPE_LDD;
+		else
+			*device_type = CELL_PAD_DEV_TYPE_STANDARD;
+	}
+
+	sys_io.warning("cellPadGetDataExtra(port_no=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
 		port_no,
 		data->len,
 		data->button[0],
@@ -624,7 +666,19 @@ error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
 		data->button[0xd],
 		data->button[0xe],
 		data->button[0xf]);
+
+	// Set BD data
+	// data->button[24] = 0x0;
+	// data->button[25] = 0x0;
+
 	return CELL_OK;
+}
+
+error_code cellPadGetData(u32 port_no, vm::ptr<CellPadData> data)
+{
+	sys_io.warning("cellPadGetData(port_no=%d, data=*0x%x)", port_no, data);
+
+	return cellPadGetDataExtra(port_no, vm::null, data);
 }
 
 error_code cellPadPeriphGetInfo(vm::ptr<CellPadPeriphInfo> info)
@@ -736,54 +790,6 @@ error_code cellPadGetRawData(u32 port_no, vm::ptr<CellPadData> data)
 		return not_an_error(CELL_PAD_ERROR_NO_DEVICE);
 
 	// ?
-
-	return CELL_OK;
-}
-
-error_code cellPadGetDataExtra(u32 port_no, vm::ptr<u32> device_type, vm::ptr<CellPadData> data)
-{
-	//sys_io.warning("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data=*0x%x)", port_no, device_type, data);
-
-	// TODO: This is used just to get data from a BD/CEC remote,
-	// but if the port isnt a remote, device type is set to CELL_PAD_DEV_TYPE_STANDARD and just regular cellPadGetData is returned
-
-	if (auto err = cellPadGetData(port_no, data))
-	{
-		return err;
-	}
-
-	if (device_type) // no error is returned on NULL
-	{
-		*device_type = CELL_PAD_DEV_TYPE_STANDARD;
-	}
-
-	sys_io.warning("cellPadGetDataExtra(port_no=%d, device_type=*0x%x, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
-		port_no, *device_type,
-		data->len,
-		data->button[0],
-		data->button[1],
-		data->button[2],
-		data->button[3],
-
-		data->button[4],
-		data->button[5],
-		data->button[6],
-		data->button[7],
-
-		data->button[8],
-		data->button[9],
-		data->button[0xa],
-		data->button[0xb],
-
-		data->button[0xc],
-		data->button[0xd],
-		data->button[0xe],
-		data->button[0xf]
-	);
-
-	// Set BD data
-	data->button[24] = 0x0;
-	data->button[25] = 0x0;
 
 	return CELL_OK;
 }
@@ -919,8 +925,11 @@ error_code cellPadGetInfo2(vm::ptr<CellPadInfo2> info)
 		info->device_capability[i] = pads[i]->m_device_capability;
 		info->device_type[i] = pads[i]->m_device_type;
 
-		sys_io.warning("cellPadGetInfo2(i=%d, device_type=%d)",
+		sys_io.warning("cellPadGetInfo2(i=%d, status=%d, setting=%d, capability=%d, type=%d)",
 			i,
+			info->port_status[i],
+			info->port_setting[i],
+			info->device_capability[i],
 			info->device_type[i]
 		);
 
@@ -964,7 +973,7 @@ error_code cellPadGetCapabilityInfo(u32 port_no, vm::ptr<CellPadCapabilityInfo> 
 
 error_code cellPadSetPortSetting(u32 port_no, u32 port_setting)
 {
-	sys_io.warning("cellPadSetPortSetting(port_no=%d, port_setting=0x%x)", port_no, port_setting);
+	sys_io.error("cellPadSetPortSetting(port_no=%d, port_setting=0x%x)", port_no, port_setting);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1111,7 +1120,7 @@ error_code cellPadSetSensorMode(u32 port_no, u32 mode)
 
 error_code cellPadLddRegisterController()
 {
-	sys_io.warning("cellPadLddRegisterController()");
+	sys_io.error("cellPadLddRegisterController()");
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
@@ -1127,7 +1136,7 @@ error_code cellPadLddRegisterController()
 	if (handle < 0)
 		return CELL_PAD_ERROR_TOO_MANY_DEVICES;
 
-	config.port_setting[handle] = 0;
+	//config.port_setting[handle] = 0;
 
 	cellPad_NotifyStateChange(handle, CELL_PAD_STATUS_CONNECTED, false);
 
@@ -1137,7 +1146,28 @@ error_code cellPadLddRegisterController()
 error_code cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 {
 	//sys_io.warning("cellPadLddDataInsert(handle=%d, data=*0x%x)", handle, data);
-	sys_io.warning("cellPadLddDataInsert(handle=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)", handle,
+
+	std::lock_guard lock(pad::g_pad_mutex);
+
+	auto& config = g_fxo->get<pad_info>();
+
+	if (!config.max_connect)
+		return CELL_PAD_ERROR_UNINITIALIZED;
+
+	const auto handler = pad::get_current_handler();
+	auto& pads = handler->GetPads();
+
+	if (handle < 0 || static_cast<u32>(handle) >= CELL_PAD_MAX_PORT_NUM || !data) // data == NULL stalls on decr
+		return CELL_PAD_ERROR_INVALID_PARAMETER;
+
+	if (!pads[handle]->ldd)
+		return CELL_PAD_ERROR_NO_DEVICE;
+
+	pads[handle]->ldd_data = *data;
+	sys_io.warning("cellPadLddDataInsert(handle=%d, ldd=%d, data.len=%d, data.btn=%x %x %x %x - %x %x %x %x - %x %x %x %x - %x %x %x %x)",
+		handle,
+		pads[handle]->ldd,
+
 		data->len,
 		data->button[0],
 		data->button[1],
@@ -1157,26 +1187,7 @@ error_code cellPadLddDataInsert(s32 handle, vm::ptr<CellPadData> data)
 		data->button[0xc],
 		data->button[0xd],
 		data->button[0xe],
-		data->button[0xf]
-	);
-
-	std::lock_guard lock(pad::g_pad_mutex);
-
-	auto& config = g_fxo->get<pad_info>();
-
-	if (!config.max_connect)
-		return CELL_PAD_ERROR_UNINITIALIZED;
-
-	const auto handler = pad::get_current_handler();
-	auto& pads = handler->GetPads();
-
-	if (handle < 0 || static_cast<u32>(handle) >= CELL_PAD_MAX_PORT_NUM || !data) // data == NULL stalls on decr
-		return CELL_PAD_ERROR_INVALID_PARAMETER;
-
-	if (!pads[handle]->ldd)
-		return CELL_PAD_ERROR_NO_DEVICE;
-
-	pads[handle]->ldd_data = *data;
+		data->button[0xf]);
 
 	return CELL_OK;
 }

@@ -1622,7 +1622,7 @@ error_code cellGemGetRumble(u32 gem_num, vm::ptr<u8> rumble)
 
 error_code cellGemGetState(u32 gem_num, u32 flag, u64 time_parameter, vm::ptr<CellGemState> gem_state)
 {
-	cellGem.warning("cellGemGetState(gem_num=%d, flag=0x%x, time=0x%llx, gem_state=*0x%x)", gem_num, flag, time_parameter, gem_state);
+	cellGem.trace("cellGemGetState(gem_num=%d, flag=0x%x, time=0x%llx, gem_state=*0x%x)", gem_num, flag, time_parameter, gem_state);
 
 	auto& gem = g_fxo->get<gem_config>();
 
@@ -1725,7 +1725,7 @@ error_code cellGemGetState(u32 gem_num, u32 flag, u64 time_parameter, vm::ptr<Ce
 
 error_code cellGemGetStatusFlags(u32 gem_num, vm::ptr<u64> flags)
 {
-	cellGem.todo("cellGemGetStatusFlags(gem_num=%d, flags=*0x%x)", gem_num, flags);
+	cellGem.trace("cellGemGetStatusFlags(gem_num=%d, flags=*0x%x)", gem_num, flags);
 
 	auto& gem = g_fxo->get<gem_config>();
 
