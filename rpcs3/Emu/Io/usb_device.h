@@ -88,7 +88,6 @@ struct UsbDeviceHID
 
 struct UsbTransfer
 {
-	u32 assigned_number = 0;
 	u32 transfer_id = 0;
 
 	s32 result = 0;
@@ -107,6 +106,7 @@ struct UsbTransfer
 	u64 expected_time   = 0;
 	s32 expected_result = 0;
 	u32 expected_count  = 0;
+	u32 assigned_number = 0;
 };
 
 // Usb descriptor helper

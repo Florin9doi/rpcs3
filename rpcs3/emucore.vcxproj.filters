@@ -1252,6 +1252,9 @@
     <ClCompile Include="Emu\RSX\NV47\FW\draw_call.cpp">
       <Filter>Emu\GPU\RSX\NV47\FW</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\Io\PSP.cpp">
+      <Filter>Emu\Io</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Crypto\aes.h">
@@ -2547,6 +2550,9 @@
     </ClInclude>
     <ClInclude Include="Emu\RSX\NV47\FW\GRAPH_backend.h">
       <Filter>Emu\GPU\RSX\NV47\FW</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\PSP.h">
+      <Filter>Emu\Io</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

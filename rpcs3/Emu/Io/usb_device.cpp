@@ -161,6 +161,7 @@ void usb_device_passthrough::control_transfer(u8 bmRequestType, u8 bRequest, u16
 
 void usb_device_passthrough::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer)
 {
+	// TODO: use libusb_fill_bulk_transfer when necessary
 	libusb_fill_interrupt_transfer(transfer->transfer, lusb_handle, endpoint, buf, buf_size, callback_transfer, transfer, 0);
 	send_libusb_transfer(transfer->transfer);
 }
