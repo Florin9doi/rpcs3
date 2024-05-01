@@ -1423,6 +1423,9 @@
     <ClCompile Include="Emu\Io\ps_move_data.cpp">
       <Filter>Emu\Io</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\Io\PSP.cpp">
+      <Filter>Emu\Io</Filter>
+    </ClInclude>
     <ClCompile Include="Emu\NP\clans_config.cpp">
       <Filter>Emu\NP</Filter>
     </ClCompile>
@@ -2957,6 +2960,9 @@
       <Filter>Emu\GPU\RSX\Program\Assembler</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\ps_move_data.h">
+      <Filter>Emu\Io</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\PSP.h">
       <Filter>Emu\Io</Filter>
     </ClInclude>
     <ClInclude Include="Emu\NP\clans_client.h">
