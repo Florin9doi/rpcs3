@@ -1,4 +1,10 @@
 #include "stdafx.h"
+
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#endif
+
 #include "sys_usbd.h"
 #include "sys_ppu_thread.h"
 #include "sys_sync.h"
@@ -29,6 +35,7 @@
 #include "Emu/Io/buzz_config.h"
 #include "Emu/Io/GameTablet.h"
 #include "Emu/Io/GunCon3.h"
+#include "Emu/Io/PSP.h"
 #include "Emu/Io/TopShotElite.h"
 #include "Emu/Io/TopShotFearmaster.h"
 #include "Emu/Io/Turntable.h"
@@ -148,6 +155,7 @@ public:
 	void disconnect_usb_device(std::shared_ptr<usb_device> dev, bool update_usb_devices = false);
 	void reconnect_usb_device(u32 assigned_number);
 	void set_usb_device_attached(usb_device* raw_dev, bool attached);
+	void print_dev_list();
 
 	// Map of devices actively handled by the ps3(device_id, device)
 	std::map<u32, std::pair<UsbInternalDevice, std::shared_ptr<usb_device>>> handled_devices;
@@ -304,6 +312,21 @@ private:
 #if SYS_USBD_HOTPLUG_SUPPORTED
 	libusb_hotplug_callback_handle callback_handle {};
 #endif
+};
+
+struct pspcm_manager
+{
+	void operator()();
+	pspcm_manager();
+	~pspcm_manager();
+	int start_server();
+
+	static constexpr auto thread_name = "UsbPspCm manager"sv;
+
+private:
+	bool m_device_connected = false;
+	int m_server_socket = -1;
+	std::shared_ptr<usb_device_psp> m_psp_dev;
 };
 
 void LIBUSB_CALL callback_transfer(struct libusb_transfer* transfer)
@@ -1049,6 +1072,31 @@ void usb_handler_thread::set_usb_device_attached(usb_device* raw_dev, bool attac
 	}
 }
 
+void usb_handler_thread::print_dev_list()
+{
+	for (u32 index = 1; index < ::size32(handled_devices); index++)
+	{
+		if (handled_devices[index].second)
+		{
+			sys_usbd.error("print_dev_list : handled_devices : UsbInternalDevice=%d/%d, VID=0x%04x, PID=0x%04x",
+				handled_devices[index].first.device_high, handled_devices[index].first.device_low,
+				handled_devices[index].second->device._device.idVendor,
+				handled_devices[index].second->device._device.idProduct);
+		}
+		else
+		{
+			sys_usbd.error("print_dev_list : handled_devices : UsbInternalDevice=%d/%d, nullptr",
+				handled_devices[index].first.device_high, handled_devices[index].first.device_low);
+		}
+	}
+
+	for (const auto& dev : usb_devices)
+	{
+		sys_usbd.error("print_dev_list : usb_devices : nr=%d VID=0x%04x, PID=0x%04x",
+			dev->assigned_number, dev->device._device.idVendor, dev->device._device.idProduct);
+	}
+}
+
 void connect_usb_controller(u8 index, input::product_type type)
 {
 	auto usbh = g_fxo->try_get<named_thread<usb_handler_thread>>();
@@ -1181,6 +1229,8 @@ error_code sys_usbd_initialize(ppu_thread& ppu, vm::ptr<u32> handle)
 		// Must not occur (lv2 allows multiple handles, cellUsbd does not)
 		ensure(!usbh.is_init.exchange(true));
 	}
+
+	g_fxo->init<named_thread<pspcm_manager>>();
 
 	ppu.check_state();
 	*handle = 0x115B;
@@ -1742,4 +1792,165 @@ error_code sys_usbd_get_device_speed(ppu_thread& ppu)
 
 	sys_usbd.todo("sys_usbd_get_device_speed()");
 	return CELL_OK;
+}
+
+
+pspcm_manager::pspcm_manager()
+{
+	sys_usbd.error("usb_psp_cm_thread::usb_psp_cm_thread()");
+}
+
+pspcm_manager::~pspcm_manager()
+{
+	sys_usbd.error("usb_psp_cm_thread::~usb_psp_cm_thread()");
+	if (m_server_socket)
+	{
+		shutdown(m_server_socket, SD_SEND);
+	}
+}
+
+int pspcm_manager::start_server()
+{
+	struct addrinfo hints{};
+	struct addrinfo* info;
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
+
+	if (getaddrinfo("127.0.0.1", "27015", &hints, &info) != 0)
+	{
+		sys_usbd.error("pspcm_manager: getaddrinfo error");
+		return -1;
+	}
+
+	m_server_socket = static_cast<int>(socket(info->ai_family, info->ai_socktype, info->ai_protocol));
+	if (m_server_socket == -1)
+	{
+		sys_usbd.error("pspcm_manager: Error creating socket");
+		freeaddrinfo(info);
+		return -2;
+	}
+
+	if (connect(m_server_socket, info->ai_addr, info->ai_addrlen) != 0)
+	{
+		//sys_usbd.error("pspcm_manager: Error connecting");
+		freeaddrinfo(info);
+		return -3;
+	}
+	freeaddrinfo(info);
+
+#ifdef _WIN32
+	u_long mode = 1;
+	ioctlsocket(m_server_socket, FIONBIO, &mode);
+#else
+	fcntl(m_server_socket, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK);
+#endif
+
+	return 0;
+}
+
+void pspcm_manager::operator()()
+{
+	char recvbuf[1000];
+	int recvbuflen = 1000;
+
+	while (thread_ctrl::state() != thread_state::aborting)
+	{
+		//sys_usbd.error("pspcm_manager::operator() loop");
+
+		if (!m_device_connected)
+		{
+			int ret = start_server();
+			//sys_usbd.error("start_server() = %d", ret);
+			if (ret == 0)
+			{
+				m_device_connected = true;
+				auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
+				std::lock_guard lock(usbh.mutex);
+				m_psp_dev = std::make_shared<usb_device_psp>(usbh.get_new_location());
+				usbh.connect_usb_device(m_psp_dev);
+			}
+			else
+			{
+				std::this_thread::sleep_for(200ms);
+			}
+		}
+		if (m_device_connected)
+		{
+			while (m_psp_dev->get_output_size())
+			{
+				struct pspcm_data d = m_psp_dev->get_output();
+				int ret = send(m_server_socket, (const char*)&d, d.totalLen, 0);
+				if (ret < 0)
+				{
+					sys_usbd.error("socket disconnected ");
+					m_device_connected = false;
+					auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
+					std::lock_guard lock(usbh.mutex);
+					usbh.disconnect_usb_device(m_psp_dev);
+					break;
+				}
+				else if (ret)
+				{
+					sys_usbd.error("send = %d", ret);
+				}
+
+				if (d.endpoint == 0)
+				{
+					int retry = 500;
+					while (retry-- > 0)
+					{
+						int ret = recv(m_server_socket, recvbuf, recvbuflen, 0);
+						if (ret >= 0)
+						{
+							sys_usbd.error("recv = %d", ret);
+							struct pspcm_data* resp = (struct pspcm_data*)recvbuf;
+							if (resp->magic == 0x0ff0)
+							{
+								switch (resp->endpoint)
+								{
+								case 0:
+									m_psp_dev->add_ctrl_resp(*resp);
+									break;
+								case PSPCM_EP_BULK_IN:
+									m_psp_dev->add_bulk_in(*resp);
+									break;
+								case PSPCM_EP_INTERRUPT_IN:
+									m_psp_dev->add_interrupt_in(*resp);
+									break;
+								}
+							}
+							break;
+						}
+						std::this_thread::sleep_for(1ms);
+					}
+				}
+
+				ret = recv(m_server_socket, recvbuf, recvbuflen, 0);
+				if (ret >= 0)
+				{
+					sys_usbd.error("recv = %d", ret);
+					struct pspcm_data* resp = (struct pspcm_data*)recvbuf;
+					if (resp->magic == 0x0ff0)
+					{
+						switch (resp->endpoint)
+						{
+						case 0:
+							m_psp_dev->add_ctrl_resp(*resp);
+							break;
+						case PSPCM_EP_BULK_IN:
+							m_psp_dev->add_bulk_in(*resp);
+							break;
+						case PSPCM_EP_INTERRUPT_IN:
+							m_psp_dev->add_interrupt_in(*resp);
+							break;
+						}
+					}
+					break;
+				}
+
+			}
+		}
+		std::this_thread::sleep_for(10ms);
+	}
 }

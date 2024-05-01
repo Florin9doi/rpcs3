@@ -1573,6 +1573,9 @@
     <ClCompile Include="Emu\Io\ps_move_data.cpp">
       <Filter>Emu\Io\PsMove</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\Io\PSP.cpp">
+      <Filter>Emu\Io\PSP</Filter>
+    </ClInclude>
     <ClCompile Include="Emu\Io\Turntable.cpp">
       <Filter>Emu\Io\Turntable</Filter>
     </ClCompile>
@@ -3165,6 +3168,9 @@
     </ClInclude>
     <ClInclude Include="Emu\Io\ps_move_data.h">
       <Filter>Emu\Io\PsMove</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\PSP.h">
+      <Filter>Emu\Io\PSP</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\turntable_config.h">
       <Filter>Emu\Io\Turntable</Filter>
