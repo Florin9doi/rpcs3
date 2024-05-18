@@ -50,7 +50,7 @@
 	ignore = dirty
 [submodule "3rdparty/libusb"]
 	path = 3rdparty/libusb/libusb
-	url = ../../libusb/libusb.git
+	url = https://github.com/sonatique/libusb.git
 	ignore = dirty
 [submodule "3rdparty/FAudio"]
 	path = 3rdparty/FAudio
