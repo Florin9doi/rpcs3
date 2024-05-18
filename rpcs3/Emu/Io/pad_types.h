@@ -137,6 +137,7 @@ enum
 
 	// these are used together with pad->is_fake_pad to capture input events for usbd/gem/move without conflicting with cellPad
 	CELL_PAD_FAKE_TYPE_GUNCON3      = 0xa000,
+	CELL_PAD_FAKE_TYPE_GAMETABLET   = 0xa001,
 
 	CELL_PAD_PCLASS_TYPE_MAX // last item
 };
