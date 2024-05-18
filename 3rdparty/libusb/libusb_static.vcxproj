@@ -68,6 +68,7 @@
     <ClCompile Include="libusb\libusb\sync.c" />
     <ClCompile Include="libusb\libusb\os\threads_windows.c" />
     <ClCompile Include="libusb\libusb\os\windows_common.c" />
+    <ClCompile Include="libusb\libusb\os\windows_hotplug.c" />
     <ClCompile Include="libusb\libusb\os\windows_usbdk.c" />
     <ClCompile Include="libusb\libusb\os\windows_winusb.c" />
   </ItemGroup>
@@ -81,6 +82,7 @@
     <ClInclude Include="libusb\libusb\version.h" />
     <ClInclude Include="libusb\libusb\version_nano.h" />
     <ClInclude Include="libusb\libusb\os\windows_common.h" />
+    <ClInclude Include="libusb\libusb\os\windows_hotplug.h" />
     <ClInclude Include="libusb\libusb\os\windows_usbdk.h" />
     <ClInclude Include="libusb\libusb\os\windows_winusb.h" />
   </ItemGroup>
