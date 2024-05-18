@@ -177,6 +177,7 @@ public:
 	virtual ~usb_device() = default;
 
 	virtual bool open_device() = 0;
+	virtual bool close_device() = 0;
 
 	void get_location(u8* location) const;
 	virtual void read_descriptors();
@@ -211,6 +212,7 @@ public:
 	~usb_device_passthrough();
 
 	bool open_device() override;
+	bool close_device() override;
 	void read_descriptors() override;
 	u32 get_configuration(u8* buf) override;
 	bool set_configuration(u8 cfg_num) override;
@@ -234,6 +236,7 @@ public:
 	usb_device_emulated(const UsbDeviceDescriptor& _device, const std::array<u8, 7>& location);
 
 	bool open_device() override;
+	bool close_device() override;
 	void control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer) override;
 	void interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer) override;
 	void isochronous_transfer(UsbTransfer* transfer) override;

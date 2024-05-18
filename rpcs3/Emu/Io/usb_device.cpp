@@ -62,12 +62,7 @@ usb_device_passthrough::usb_device_passthrough(libusb_device* _device, libusb_de
 
 usb_device_passthrough::~usb_device_passthrough()
 {
-	if (lusb_handle)
-	{
-		libusb_release_interface(lusb_handle, 0);
-		libusb_close(lusb_handle);
-	}
-
+	close_device();
 	if (lusb_device)
 	{
 		libusb_unref_device(lusb_device);
@@ -105,27 +100,48 @@ bool usb_device_passthrough::open_device()
 	return false;
 }
 
+bool usb_device_passthrough::close_device()
+{
+	if (lusb_handle)
+	{
+		libusb_release_interface(lusb_handle, 0);
+		libusb_close(lusb_handle);
+		lusb_handle = nullptr;
+	}
+	return true;
+}
+
 void usb_device_passthrough::read_descriptors()
 {
-	// Directly getting configuration descriptors from the device instead of going through libusb parsing functions as they're not needed
 	for (u8 index = 0; index < device._device.bNumConfigurations; index++)
 	{
-		u8 buf[1000];
-		int ssize = libusb_control_transfer(lusb_handle, +LIBUSB_ENDPOINT_IN | +LIBUSB_REQUEST_TYPE_STANDARD | +LIBUSB_RECIPIENT_DEVICE, LIBUSB_REQUEST_GET_DESCRIPTOR, 0x0200 | index, 0, buf, 1000, 0);
-		if (ssize < 0)
+		struct libusb_config_descriptor* conf_desc;
+		int ret = libusb_get_config_descriptor(lusb_device, index, &conf_desc);
+		if (ret != LIBUSB_SUCCESS)
 		{
-			sys_usbd.fatal("Couldn't get the config from the device: %d(%s)", ssize, libusb_error_name(ssize));
+			sys_usbd.fatal("Couldn't get the config from the device: %d(%s)", ret, libusb_error_name(ret));
 			continue;
 		}
 
-		// Minimalistic parse
-		auto& conf = device.add_node(UsbDescriptorNode(buf[0], buf[1], &buf[2]));
+		auto& conf = device.add_node(UsbDescriptorNode(conf_desc->bLength, conf_desc->bDescriptorType, ((u8*)conf_desc) + 2));
 
-		for (int index = buf[0]; index < ssize;)
+		for (u8 intf_nr = 0; intf_nr < conf_desc->bNumInterfaces; intf_nr++)
 		{
-			conf.add_node(UsbDescriptorNode(buf[index], buf[index + 1], &buf[index + 2]));
-			index += buf[index];
+			const libusb_interface* intf = &conf_desc->interface[intf_nr];
+			for (u8 alt_nr = 0; alt_nr < intf->num_altsetting; alt_nr++)
+			{
+				const libusb_interface_descriptor* intf_desc = &intf->altsetting[alt_nr];
+				conf.add_node(UsbDescriptorNode(intf_desc->bLength, intf_desc->bDescriptorType, ((u8*)intf_desc) + 2));
+
+				for (u8 ep_nr = 0; ep_nr < intf_desc->bNumEndpoints; ep_nr++)
+				{
+					const libusb_endpoint_descriptor* ep_desc = &intf_desc->endpoint[ep_nr];
+					conf.add_node(UsbDescriptorNode(ep_desc->bLength, ep_desc->bDescriptorType, ((u8*)ep_desc) + 2));
+				}
+			}
 		}
+
+		libusb_free_config_descriptor(conf_desc);
 	}
 }
 
@@ -194,6 +210,11 @@ usb_device_emulated::usb_device_emulated(const UsbDeviceDescriptor& _device, con
 }
 
 bool usb_device_emulated::open_device()
+{
+	return true;
+}
+
+bool usb_device_emulated::close_device()
 {
 	return true;
 }

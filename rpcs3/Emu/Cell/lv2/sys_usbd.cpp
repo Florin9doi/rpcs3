@@ -114,9 +114,14 @@ public:
 	void connect_usb_device(std::shared_ptr<usb_device> dev, bool update_usb_devices = false);
 	void disconnect_usb_device(std::shared_ptr<usb_device> dev, bool update_usb_devices = false);
 
+	static int hotplug_handler(libusb_context* ctx, libusb_device* dev, libusb_hotplug_event event, void* user_data);
+
 	// Map of devices actively handled by the ps3(device_id, device)
 	std::map<u32, std::pair<UsbInternalDevice, std::shared_ptr<usb_device>>> handled_devices;
+	// Map of emulated devices (controller index to usb_device ptr)
 	std::map<u8, std::pair<input::product_type, std::shared_ptr<usb_device>>> pad_to_usb;
+	// Map of passthrough devices (bus/address to usb_device ptr)
+	std::map<std::pair<u8, u8>, std::shared_ptr<usb_device>> bus_addr_to_usb;
 
 	shared_mutex mutex;
 	atomic_t<bool> is_init = false;
@@ -196,6 +201,90 @@ static void LIBUSB_CALL log_cb(libusb_context* /*ctx*/, enum libusb_log_level le
 	}
 }
 
+struct
+{
+	u16 vendor_id;
+	u16 product_id_min;
+	u16 product_id_max;
+	const char* name;
+} usb_devices[] = {
+	// Portals
+	{0x1430, 0x0150, 0x0150, "Skylanders Portal"},
+	{0x0E6F, 0x0129, 0x0129, "Disney Infinity Base"},
+	{0x0E6F, 0x0241, 0x0241, "Lego Dimensions Portal"},
+	{0x0E6F, 0x200A, 0x200A, "Kamen Rider Summonride Portal"},
+
+	// Cameras
+	// {0x1415, 0x0020, 0x2000, "Sony Playstation Eye"}, // TODO: verifiy
+
+	// Music devices
+	{0x1415, 0x0000, 0x0000, "SingStar Microphone"},
+	// {0x1415, 0x0020, 0x0020, "SingStar Microphone Wireless"}, // TODO: verifiy
+	{0x12BA, 0x0100, 0x0100, "Guitar Hero Guitar"},
+	{0x12BA, 0x0120, 0x0120, "Guitar Hero Drums"},
+	{0x12BA, 0x074B, 0x074B, "Guitar Hero Live Guitar"},
+
+	{0x12BA, 0x0140, 0x0140, "DJ Hero Turntable"},
+	{0x12BA, 0x0200, 0x020F, "Harmonix Guitar"},
+	{0x12BA, 0x0210, 0x021F, "Harmonix Drums"},
+	{0x12BA, 0x2330, 0x233F, "Harmonix Keyboard"},
+	{0x12BA, 0x2430, 0x243F, "Harmonix Button Guitar"},
+	{0x12BA, 0x2530, 0x253F, "Harmonix Real Guitar"},
+
+	{0x1BAD, 0x0004, 0x0004, "Harmonix RB1 Guitar - Wii"},
+	{0x1BAD, 0x0005, 0x0005, "Harmonix RB1 Drums - Wii"},
+	{0x1BAD, 0x3010, 0x301F, "Harmonix RB2 Guitar - Wii"},
+	{0x1BAD, 0x3110, 0x313F, "Harmonix RB2 Drums - Wii"},
+	{0x1BAD, 0x3330, 0x333F, "Harmonix Keyboard - Wii"},
+	{0x1BAD, 0x3430, 0x343F, "Harmonix Button Guitar - Wii"},
+	{0x1BAD, 0x3530, 0x353F, "Harmonix Real Guitar - Wii"},
+
+	// Top Shot Elite controllers
+	{0x12BA, 0x04A0, 0x04A0, "Top Shot Elite"},
+	{0x12BA, 0x04A1, 0x04A1, "Top Shot Fearmaster"},
+	{0x12BA, 0x04B0, 0x04B0, "Rapala Fishing Rod"},
+
+	// GT5 Wheels&co
+	{0x046D, 0xC283, 0xC29B, "lgFF_c283_c29b"},
+	{0x044F, 0xB653, 0xB653, "Thrustmaster RGT FFB Pro"},
+	{0x044F, 0xB65A, 0xB65A, "Thrustmaster F430"},
+	{0x044F, 0xB65D, 0xB65D, "Thrustmaster FFB"},
+	{0x044F, 0xB65E, 0xB65E, "Thrustmaster TRS"},
+	{0x044F, 0xB660, 0xB660, "Thrustmaster T500 RS Gear Shift"},
+
+	// GT6
+	{0x2833, 0x0001, 0x0001, "Oculus"},
+	{0x046D, 0xCA03, 0xCA03, "lgFF_ca03_ca03"},
+
+	// Buzz controllers
+	{0x054C, 0x1000, 0x1040, "buzzer0"},
+	{0x054C, 0x0001, 0x0041, "buzzer1"},
+	{0x054C, 0x0042, 0x0042, "buzzer2"},
+	{0x046D, 0xC220, 0xC220, "buzzer9"},
+
+	{0x0B9A, 0x0800, 0x0800, "GunCon 3"},
+	{0x20D6, 0xCB17, 0xCB17, "uDraw GameTablet"},
+	{0x1415, 0x0003, 0x0003, "PlayTV SCEH-0036 DVB-T tuner"},
+	{0x0B9A, 0x0900, 0x0910, "PS3A-USJ"}, // 0x0900: "H050 USJ(C) PCB rev00", 0x0910: "USIO PCB rev00"
+	{0x0AE4, 0x0004, 0x0004, "Densha de GO! Type 2 Controller"},
+	{0x21A4, 0xAC27, 0xAC27, "EA Active 2 Dongle"}, // EA Active 2 dongle for connecting wristbands & legband
+	{0x12BA, 0x0400, 0x0400, "Tony Hawk RIDE Skateboard Controller"},
+	{0x054C, 0x01CB, 0x01CB, "UsbPspcm"}, // PSP in UsbPspCm mode
+};
+
+static int is_usb_device_allowed(u16 vendor_id, u16 product_id)
+{
+	for (auto& dev : usb_devices)
+	{
+		if (dev.vendor_id == vendor_id && dev.product_id_min <= product_id && product_id <= dev.product_id_max)
+		{
+			sys_usbd.success("Found device: %s", dev.name);
+			return true;
+		}
+	}
+	return false;
+}
+
 usb_handler_thread::usb_handler_thread()
 {
 #if LIBUSB_API_VERSION >= 0x0100010A
@@ -219,6 +308,19 @@ usb_handler_thread::usb_handler_thread()
 	{
 		sys_usbd.error("Failed to initialize sys_usbd: %s", libusb_error_name(res));
 		return;
+	}
+
+	sys_usbd.error("libusb_has_capability(HOTPLUG) = %d", libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG));
+	if (libusb_has_capability(LIBUSB_CAP_HAS_HOTPLUG))
+	{
+		libusb_hotplug_callback_handle hotplug_callback_handle;
+		libusb_hotplug_register_callback(
+			ctx,
+			LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT,
+			LIBUSB_HOTPLUG_NO_FLAGS, // LIBUSB_HOTPLUG_NO_FLAGS or LIBUSB_HOTPLUG_ENUMERATE
+			LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY,
+			hotplug_handler, this, &hotplug_callback_handle
+		);
 	}
 
 	for (u32 index = 0; index < MAX_SYS_USBD_TRANSFERS; index++)
@@ -251,57 +353,13 @@ usb_handler_thread::usb_handler_thread()
 			continue;
 		}
 
-		auto check_device = [&](const u16 id_vendor, const u16 id_product_min, const u16 id_product_max, const char* s_name) -> bool
+		if (is_usb_device_allowed(desc.idVendor, desc.idProduct))
 		{
-			if (desc.idVendor == id_vendor && desc.idProduct >= id_product_min && desc.idProduct <= id_product_max)
-			{
-				sys_usbd.success("Found device: %s", s_name);
-				libusb_ref_device(list[index]);
-				std::shared_ptr<usb_device_passthrough> usb_dev = std::make_shared<usb_device_passthrough>(list[index], desc, get_new_location());
-				usb_devices.push_back(usb_dev);
-				return true;
-			}
-			return false;
-		};
-
-		// Portals
-		if (check_device(0x1430, 0x0150, 0x0150, "Skylanders Portal"))
-		{
-			found_skylander = true;
+			libusb_ref_device(list[index]);
+			std::shared_ptr<usb_device_passthrough> usb_dev = std::make_shared<usb_device_passthrough>(list[index], desc, get_new_location());
+			usb_devices.push_back(usb_dev);
+			bus_addr_to_usb.emplace(std::pair(libusb_get_bus_number(list[index]), libusb_get_device_address(list[index])), usb_dev);
 		}
-
-		if (check_device(0x0E6F, 0x0129, 0x0129, "Disney Infinity Base"))
-		{
-			found_infinity = true;
-		}
-
-		check_device(0x0E6F, 0x0241, 0x0241, "Lego Dimensions Portal");
-		check_device(0x0E6F, 0x200A, 0x200A, "Kamen Rider Summonride Portal");
-
-		// Cameras
-		// check_device(0x1415, 0x0020, 0x2000, "Sony Playstation Eye"); // TODO: verifiy
-
-		// Music devices
-		check_device(0x1415, 0x0000, 0x0000, "SingStar Microphone");
-		// check_device(0x1415, 0x0020, 0x0020, "SingStar Microphone Wireless"); // TODO: verifiy
-		check_device(0x12BA, 0x0100, 0x0100, "Guitar Hero Guitar");
-		check_device(0x12BA, 0x0120, 0x0120, "Guitar Hero Drums");
-		check_device(0x12BA, 0x074B, 0x074B, "Guitar Hero Live Guitar");
-
-		check_device(0x12BA, 0x0140, 0x0140, "DJ Hero Turntable");
-		check_device(0x12BA, 0x0200, 0x020F, "Harmonix Guitar");
-		check_device(0x12BA, 0x0210, 0x021F, "Harmonix Drums");
-		check_device(0x12BA, 0x2330, 0x233F, "Harmonix Keyboard");
-		check_device(0x12BA, 0x2430, 0x243F, "Harmonix Button Guitar");
-		check_device(0x12BA, 0x2530, 0x253F, "Harmonix Real Guitar");
-
-		check_device(0x1BAD, 0x0004, 0x0004, "Harmonix RB1 Guitar - Wii");
-		check_device(0x1BAD, 0x0005, 0x0005, "Harmonix RB1 Drums - Wii");
-		check_device(0x1BAD, 0x3010, 0x301F, "Harmonix RB2 Guitar - Wii");
-		check_device(0x1BAD, 0x3110, 0x313F, "Harmonix RB2 Drums - Wii");
-		check_device(0x1BAD, 0x3330, 0x333F, "Harmonix Keyboard - Wii");
-		check_device(0x1BAD, 0x3430, 0x343F, "Harmonix Button Guitar - Wii");
-		check_device(0x1BAD, 0x3530, 0x353F, "Harmonix Real Guitar - Wii");
 
 		if (desc.idVendor == 0x1209 && desc.idProduct == 0x2882)
 		{
@@ -317,55 +375,12 @@ usb_handler_thread::usb_handler_thread()
 			libusb_close(lusb_handle);
 		}
 
-		// Top Shot Elite controllers
-		check_device(0x12BA, 0x04A0, 0x04A0, "Top Shot Elite");
-		check_device(0x12BA, 0x04A1, 0x04A1, "Top Shot Fearmaster");
-		check_device(0x12BA, 0x04B0, 0x04B0, "Rapala Fishing Rod");
-
-		// GT5 Wheels&co
-		check_device(0x046D, 0xC283, 0xC29B, "lgFF_c283_c29b");
-		check_device(0x044F, 0xB653, 0xB653, "Thrustmaster RGT FFB Pro");
-		check_device(0x044F, 0xB65A, 0xB65A, "Thrustmaster F430");
-		check_device(0x044F, 0xB65D, 0xB65D, "Thrustmaster FFB");
-		check_device(0x044F, 0xB65E, 0xB65E, "Thrustmaster TRS");
-		check_device(0x044F, 0xB660, 0xB660, "Thrustmaster T500 RS Gear Shift");
-
-		// GT6
-		check_device(0x2833, 0x0001, 0x0001, "Oculus");
-		check_device(0x046D, 0xCA03, 0xCA03, "lgFF_ca03_ca03");
-
-		// Buzz controllers
-		check_device(0x054C, 0x1000, 0x1040, "buzzer0");
-		check_device(0x054C, 0x0001, 0x0041, "buzzer1");
-		check_device(0x054C, 0x0042, 0x0042, "buzzer2");
-		check_device(0x046D, 0xC220, 0xC220, "buzzer9");
-
-		// GunCon3 Gun
-		check_device(0x0B9A, 0x0800, 0x0800, "GunCon3");
-
-		// uDraw GameTablet
-		check_device(0x20D6, 0xCB17, 0xCB17, "uDraw GameTablet");
-
-		// DVB-T
-		check_device(0x1415, 0x0003, 0x0003, "PlayTV SCEH-0036");
-
-		// 0x0900: "H050 USJ(C) PCB rev00", 0x0910: "USIO PCB rev00"
-		if (check_device(0x0B9A, 0x0900, 0x0910, "PS3A-USJ"))
-		{
+		if (desc.idVendor == 0x1430 && desc.idProduct == 0x0150) // Skylanders Portal
+			found_skylander = true;
+		if (desc.idVendor == 0x0E6F && desc.idProduct == 0x0129) // Disney Infinity Base
+			found_infinity = true;
+		if (desc.idVendor == 0x0B9A && 0x0900 <= desc.idProduct && desc.idProduct <= 0x0910) // 0x0900: "H050 USJ(C) PCB rev00", 0x0910: "USIO PCB rev00"
 			found_usj = true;
-		}
-
-		// Densha de GO! controller
-		check_device(0x0AE4, 0x0004, 0x0004, "Densha de GO! Type 2 Controller");
-
-		// EA Active 2 dongle for connecting wristbands & legband
-		check_device(0x21A4, 0xAC27, 0xAC27, "EA Active 2 Dongle");
-
-		// Tony Hawk RIDE Skateboard
-		check_device(0x12BA, 0x0400, 0x0400, "Tony Hawk RIDE Skateboard Controller");
-
-		// PSP in UsbPspCm mode
-		check_device(0x054C, 0x01CB, 0x01CB, "UsbPspcm");
 	}
 
 	libusb_free_device_list(list, 1);
@@ -578,14 +593,15 @@ void usb_handler_thread::transfer_complete(struct libusb_transfer* transfer)
 	case LIBUSB_TRANSFER_OVERFLOW: usbd_transfer->result = EHCI_CC_BABBLE; break;
 	case LIBUSB_TRANSFER_NO_DEVICE:
 		usbd_transfer->result = EHCI_CC_HALTED;
-		for (const auto& dev : usb_devices)
-		{
-			if (dev->assigned_number == usbd_transfer->assigned_number)
-			{
-				disconnect_usb_device(dev, true);
-				break;
-			}
-		}
+		// TODO: sync with hotplug disconnect
+		//for (const auto& dev : usb_devices)
+		//{
+		//	if (dev->assigned_number == usbd_transfer->assigned_number)
+		//	{
+		//		disconnect_usb_device(dev, true);
+		//		break;
+		//	}
+		//}
 		break;
 	case LIBUSB_TRANSFER_ERROR:
 	case LIBUSB_TRANSFER_CANCELLED:
@@ -824,6 +840,7 @@ void usb_handler_thread::disconnect_usb_device(std::shared_ptr<usb_device> dev, 
 {
 	if (dev->assigned_number && handled_devices.erase(dev->assigned_number))
 	{
+		dev->close_device();
 		send_message(SYS_USBD_DETACH, dev->assigned_number);
 		sys_usbd.success("USB device(VID=0x%04x, PID=0x%04x) unassigned, handled_device=0x%x", dev->device._device.idVendor, dev->device._device.idProduct, dev->assigned_number);
 		dev->assigned_number = 0;
@@ -831,6 +848,44 @@ void usb_handler_thread::disconnect_usb_device(std::shared_ptr<usb_device> dev, 
 
 	if (update_usb_devices)
 		usb_devices.erase(find(usb_devices.begin(), usb_devices.end(), dev));
+}
+
+int LIBUSB_CALL usb_handler_thread::hotplug_handler(libusb_context* ctx, libusb_device* ldev, libusb_hotplug_event event, void* user_data)
+{
+	usb_handler_thread* usbh = reinterpret_cast<usb_handler_thread*>(user_data);
+	struct libusb_device_descriptor desc;
+	if (int ret = libusb_get_device_descriptor(ldev, &desc); ret != LIBUSB_SUCCESS)
+	{
+		sys_usbd.error("Error getting device descriptor: %s", libusb_error_name(ret));
+		return 0;
+	}
+
+	std::lock_guard lock(usbh->mutex);
+
+	if (LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED == event)
+	{
+		sys_usbd.error("Hotplug handler : Device attached: %04x:%04x, bus=%d, addr=%d", desc.idVendor, desc.idProduct,
+			libusb_get_bus_number(ldev), libusb_get_device_address(ldev));
+		if (is_usb_device_allowed(desc.idVendor, desc.idProduct))
+		{
+			//libusb_ref_device(ldev);
+			std::shared_ptr<usb_device> dev = std::make_shared<usb_device_passthrough>(ldev, desc, usbh->get_new_location());
+			usbh->connect_usb_device(dev, true);
+			usbh->bus_addr_to_usb.emplace(std::pair(libusb_get_bus_number(ldev), libusb_get_device_address(ldev)), dev);
+		}
+	}
+	if (LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT == event)
+	{
+		sys_usbd.error("Hotplug handler : Device detached: %04x:%04x, bus=%d, addr=%d", desc.idVendor, desc.idProduct,
+			libusb_get_bus_number(ldev), libusb_get_device_address(ldev));
+		if (const auto it = usbh->bus_addr_to_usb.find(std::pair(libusb_get_bus_number(ldev), libusb_get_device_address(ldev)));
+			it != usbh->bus_addr_to_usb.end())
+		{
+			usbh->disconnect_usb_device(it->second, true);
+			usbh->bus_addr_to_usb.erase(it->first);
+		}
+	}
+	return 0;
 }
 
 void connect_usb_controller(u8 index, input::product_type type)
