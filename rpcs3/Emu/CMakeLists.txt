@@ -442,6 +442,7 @@ target_sources(rpcs3_emu PRIVATE
     Io/RB3MidiGuitar.cpp
     Io/RB3MidiKeyboard.cpp
     Io/recording_config.cpp
+    Io/RodAndReel.cpp
     Io/Skylander.cpp
     Io/TopShotElite.cpp
     Io/TopShotFearmaster.cpp

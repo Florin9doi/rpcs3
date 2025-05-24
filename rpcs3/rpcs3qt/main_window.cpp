@@ -3168,6 +3168,12 @@ void main_window::CreateConnects()
 		dlg->show();
 	});
 
+	connect(ui->confRodAndReelAct, &QAction::triggered, this, [this]
+	{
+		emulated_pad_settings_dialog* dlg = new emulated_pad_settings_dialog(emulated_pad_settings_dialog::pad_type::rodandreel, this);
+		dlg->show();
+	});
+
 #ifndef HAVE_SDL3
 	ui->confLogitechG27Act->setVisible(false);
 #else

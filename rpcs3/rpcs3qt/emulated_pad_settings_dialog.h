@@ -24,6 +24,7 @@ public:
 		guncon3,
 		topshotelite,
 		topshotfearmaster,
+		rodandreel,
 	};
 
 	emulated_pad_settings_dialog(pad_type type, QWidget* parent = nullptr);

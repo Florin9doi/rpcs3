@@ -232,6 +232,17 @@ namespace input
 		}
 	},
 	{
+		product_type::rapala_rod_and_reel,
+		{
+			.type = product_type::rapala_rod_and_reel,
+			.class_id = CELL_PAD_FAKE_TYPE_ROD_AND_REEL,
+			.vendor_id = vendor_id::sony_cea,
+			.product_id = product_id::rapala_rod_and_reel,
+			.pclass_profile = 0x0,
+			.capabilites = 0x0
+		}
+	},
+	{
 		product_type::udraw_gametablet,
 		{
 			.type = product_type::udraw_gametablet,

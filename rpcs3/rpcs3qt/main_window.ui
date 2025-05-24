@@ -273,6 +273,7 @@
      <addaction name="confGunCon3Act"/>
      <addaction name="confTopShotEliteAct"/>
      <addaction name="confTopShotFearmasterAct"/>
+     <addaction name="confRodAndReelAct"/>
      <addaction name="confLogitechG27Act"/>
     </widget>
     <addaction name="confCPUAct"/>
@@ -1544,6 +1545,11 @@
     <string>Top Shot Fearmaster</string>
    </property>
   </action>
+   <action name="confRodAndReelAct">
+     <property name="text">
+       <string>Rapala Rod and Reel</string>
+     </property>
+   </action>
   <action name="confLogitechG27Act">
    <property name="text">
     <string>Logitech G27 Wheel</string>

@@ -29,6 +29,8 @@
 #include "Emu/Io/buzz_config.h"
 #include "Emu/Io/GameTablet.h"
 #include "Emu/Io/GunCon3.h"
+#include "Emu/Io/RodAndReel.h"
+#include "Emu/Io/rodandreel_config.h"
 #include "Emu/Io/TopShotElite.h"
 #include "Emu/Io/TopShotFearmaster.h"
 #include "Emu/Io/Turntable.h"
@@ -61,6 +63,7 @@ cfg_usios g_cfg_usio;
 cfg_guncon3 g_cfg_guncon3;
 cfg_topshotelite g_cfg_topshotelite;
 cfg_topshotfearmaster g_cfg_topshotfearmaster;
+cfg_rodandreel g_cfg_rodandreel;
 
 extern atomic_t<bool> libusbd_active;
 
@@ -223,6 +226,7 @@ private:
 		{0x12BA, 0x04A0, 0x04A0, "Top Shot Elite", nullptr, nullptr},
 		{0x12BA, 0x04A1, 0x04A1, "Top Shot Fearmaster", nullptr, nullptr},
 		{0x12BA, 0x04B0, 0x04B0, "Rapala Fishing Rod", nullptr, nullptr},
+		{0x12BA, 0x04B0, 0x04B0, "Rapala Rod and Reel", nullptr, nullptr},
 
 		// Wheels
 #ifdef HAVE_SDL3
@@ -1089,6 +1093,21 @@ void connect_usb_controller(u8 index, input::product_type type)
 			usbh->pad_to_usb.emplace(index, std::pair(type, dev));
 
 			sys_usbd.notice("Top shot fearmaster config=\n", g_cfg_topshotfearmaster.to_string());
+			break;
+		}
+		case input::product_type::rapala_rod_and_reel:
+		{
+			if (!g_cfg_rodandreel.load())
+			{
+				sys_usbd.notice("Could not load Rod and Reel config. Using defaults.");
+			}
+
+			sys_usbd.success("Adding emulated Rapala Rod and Reel (controller %d)", index);
+			std::shared_ptr<usb_device> dev = std::make_shared<usb_device_rodandreel>(index, usbh->get_new_location());
+			usbh->connect_usb_device(dev, true);
+			usbh->pad_to_usb.emplace(index, std::pair(type, dev));
+
+			sys_usbd.notice("RodAndReel config=\n", g_cfg_rodandreel.to_string());
 			break;
 		}
 		case input::product_type::udraw_gametablet:

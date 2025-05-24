@@ -185,6 +185,7 @@ pad_settings_dialog::pad_settings_dialog(std::shared_ptr<gui_settings> gui_setti
 	ui->chooseClass->addItem(tr("GunCon 3"),           u32{CELL_PAD_FAKE_TYPE_GUNCON3});
 	ui->chooseClass->addItem(tr("Top Shot Elite"),     u32{CELL_PAD_FAKE_TYPE_TOP_SHOT_ELITE});
 	ui->chooseClass->addItem(tr("Top Shot Fearmaster"),u32{CELL_PAD_FAKE_TYPE_TOP_SHOT_FEARMASTER});
+	ui->chooseClass->addItem(tr("Rapala Rod and Reel"),u32{CELL_PAD_FAKE_TYPE_ROD_AND_REEL});
 	ui->chooseClass->addItem(tr("uDraw GameTablet"),   u32{CELL_PAD_FAKE_TYPE_GAMETABLET});
 	ui->chooseClass->addItem(tr("Copilot for Player 1"), u32{CELL_PAD_FAKE_TYPE_COPILOT_1});
 	ui->chooseClass->addItem(tr("Copilot for Player 2"), u32{CELL_PAD_FAKE_TYPE_COPILOT_2});
@@ -1890,6 +1891,11 @@ void pad_settings_dialog::HandleDeviceClassChange(u32 class_id) const
 		case input::product_type::top_shot_fearmaster:
 		{
 			ui->chooseProduct->addItem(tr("Top Shot Fearmaster", "Top Shot Fearmaster Controller"), static_cast<int>(product.type));
+			break;
+		}
+		case input::product_type::rapala_rod_and_reel:
+		{
+			ui->chooseProduct->addItem(tr("Rapala Rod and Reel ", "Rapala Rod and Reel Controller"), static_cast<int>(product.type));
 			break;
 		}
 		case input::product_type::udraw_gametablet:
