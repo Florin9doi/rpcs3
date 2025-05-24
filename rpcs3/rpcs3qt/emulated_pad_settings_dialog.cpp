@@ -7,6 +7,7 @@
 #include "Emu/Io/gem_config.h"
 #include "Emu/Io/ghltar_config.h"
 #include "Emu/Io/guncon3_config.h"
+#include "Emu/Io/rodandreel_config.h"
 #include "Emu/Io/topshotelite_config.h"
 #include "Emu/Io/topshotfearmaster_config.h"
 #include "Emu/Io/turntable_config.h"
@@ -113,6 +114,10 @@ emulated_pad_settings_dialog::emulated_pad_settings_dialog(pad_type type, QWidge
 		setWindowTitle(tr("Configure Emulated Top Shot Fearmaster"));
 		add_tabs<topshotfearmaster_btn>(tabs);
 		break;
+	case emulated_pad_settings_dialog::pad_type::rodandreel:
+		setWindowTitle(tr("Configure Emulated Rapala Rod and Reel"));
+		add_tabs<rodandreel_btn>(tabs);
+		break;
 	}
 
 	v_layout->addWidget(tabs);
@@ -205,6 +210,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 		break;
 	case pad_type::topshotfearmaster:
 		players = g_cfg_topshotfearmaster.players.size();
+		break;
+	case pad_type::rodandreel:
+		players = g_cfg_rodandreel.players.size();
 		break;
 	}
 
@@ -326,6 +334,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 			case pad_type::topshotfearmaster:
 				saved_btn_id = ::at32(g_cfg_topshotfearmaster.players, player)->get_pad_button(static_cast<topshotfearmaster_btn>(id));
 				break;
+			case pad_type::rodandreel:
+				saved_btn_id = ::at32(g_cfg_rodandreel.players, player)->get_pad_button(static_cast<rodandreel_btn>(id));
+				break;
 			}
 
 			combo->setCurrentIndex(combo->findData(static_cast<int>(saved_btn_id)));
@@ -372,6 +383,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 					break;
 				case pad_type::topshotfearmaster:
 					::at32(g_cfg_topshotfearmaster.players, player)->set_button(static_cast<topshotfearmaster_btn>(id), btn_id);
+					break;
+				case pad_type::rodandreel:
+					::at32(g_cfg_rodandreel.players, player)->set_button(static_cast<rodandreel_btn>(id), btn_id);
 					break;
 				}
 			});
@@ -608,6 +622,12 @@ void emulated_pad_settings_dialog::load_config()
 			cfg_log.notice("Could not load topshotfearmaster config. Using defaults.");
 		}
 		break;
+	case emulated_pad_settings_dialog::pad_type::rodandreel:
+		if (!g_cfg_rodandreel.load())
+		{
+			cfg_log.notice("Could not load RodAndReel config. Using defaults.");
+		}
+		break;
 	}
 }
 
@@ -645,6 +665,9 @@ void emulated_pad_settings_dialog::save_config()
 	case emulated_pad_settings_dialog::pad_type::topshotfearmaster:
 		g_cfg_topshotfearmaster.save();
 		break;
+	case emulated_pad_settings_dialog::pad_type::rodandreel:
+		g_cfg_rodandreel.save();
+		break;
 	}
 }
 
@@ -681,6 +704,9 @@ void emulated_pad_settings_dialog::reset_config()
 		break;
 	case emulated_pad_settings_dialog::pad_type::topshotfearmaster:
 		g_cfg_topshotfearmaster.from_default();
+		break;
+	case emulated_pad_settings_dialog::pad_type::rodandreel:
+		g_cfg_rodandreel.from_default();
 		break;
 	}
 
@@ -727,6 +753,9 @@ void emulated_pad_settings_dialog::reset_config()
 				break;
 			case pad_type::topshotfearmaster:
 				def_btn_id = ::at32(g_cfg_topshotfearmaster.players, player)->default_pad_button(static_cast<topshotfearmaster_btn>(data.toInt()));
+				break;
+			case pad_type::rodandreel:
+				def_btn_id = ::at32(g_cfg_rodandreel.players, player)->default_pad_button(static_cast<rodandreel_btn>(data.toInt()));
 				break;
 			}
 
