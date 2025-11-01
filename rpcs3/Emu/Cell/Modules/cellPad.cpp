@@ -256,7 +256,7 @@ extern void pad_state_notify_state_change(usz index, u32 state)
 
 error_code cellPadInit(ppu_thread& ppu, u32 max_connect)
 {
-	cellPad.warning("cellPadInit(max_connect=%d)", max_connect);
+	cellPad.error("cellPadInit(max_connect=%d)", max_connect);
 
 	std::lock_guard lock(pad::g_pad_mutex);
 
