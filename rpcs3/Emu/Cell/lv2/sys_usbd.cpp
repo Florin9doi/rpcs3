@@ -285,6 +285,8 @@ private:
 		// Sony Stereo Headsets
 		{0x12BA, 0x0032, 0x0032, "Wireless Stereo Headset", nullptr, nullptr},
 		{0x12BA, 0x0042, 0x0042, "Wireless Stereo Headset", nullptr, nullptr},
+
+		{0x04B8, 0x0005, 0x0005, "Epson Printer", nullptr, nullptr},
 	};
 
 	// List of pipes
@@ -1320,6 +1322,7 @@ error_code sys_usbd_register_ldd(ppu_thread& ppu, u32 handle, vm::cptr<char> s_p
 	// Unsure how many more devices might need similar treatment (i.e. just a compare and force VID/PID add), or if it's worth adding a full promiscuous capability
 	static const std::unordered_map<std::string, UsbLdd, fmt::string_hash, std::equal_to<>> predefined_ldds
 	{
+		{"epson_printer", {0x04b8, 0x0005, 0x0005}},
 		{"cellUsbPspcm", {0x054C, 0x01CB, 0x01CB}},
 		{"guncon3", {0x0B9A, 0x0800, 0x0800}},
 		{"PS3A-USJ", {0x0B9A, 0x0900, 0x0910}}
