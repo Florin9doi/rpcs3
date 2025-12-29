@@ -1688,6 +1688,21 @@ error_code sys_usbd_allocate_memory(ppu_thread& ppu)
 	return CELL_OK;
 }
 
+// Unimplemented syscall syscall_569 -> CELL_OK (r3=0x115b, r4=0xd000f844, r5=0xd000f840, r6=0x100000, r7=0x0, r8=0x100103f0, r9=0xffffffff, r10=0x100103f0)
+// sys_usbd TODO: sys_usbd_allocate_shared_memory(handle=0x115b, arg1=0xd000f844(36), arg2=0xd000f840(0), size=0x100000)
+// sys_tty: sys_tty_write(): “Failed to allocate USB shared memory! (801100ff)“ << endl
+// 0x801100ff = CELL_USBD_ERROR_FATAL
+error_code sys_usbd_allocate_shared_memory(ppu_thread& ppu, u32 handle, vm::ptr<u32> arg1, vm::ptr<u32> arg2, u32 size)
+{
+	ppu.state += cpu_flag::wait;
+
+	sys_usbd.todo("sys_usbd_allocate_shared_memory(handle=0x%x, arg1=0x%x(%x), arg2=0x%x(%x), size=0x%x)",
+		handle, arg1, *arg1, arg2, *arg2, size);
+	*arg2 = 0x12345678; // ok
+	*arg2 = 20; // still ok
+	return CELL_OK;
+}
+
 error_code sys_usbd_free_memory(ppu_thread& ppu)
 {
 	ppu.state += cpu_flag::wait;
