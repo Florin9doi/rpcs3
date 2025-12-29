@@ -613,7 +613,7 @@ const std::array<std::pair<ppu_intrp_func_t, std::string_view>, 1024> g_ppu_sysc
 	null_func,//BIND_SYSC(sys_...),                         //566 (0x236)
 	null_func,//BIND_SYSC(sys_...),                         //567 (0x237)
 	null_func,//BIND_SYSC(sys_...),                         //568 (0x238)
-	null_func,//BIND_SYSC(sys_...),                         //569 (0x239)
+	BIND_SYSC(sys_usbd_allocate_shared_memory),             //569 (0x239)
 	NULL_FUNC(sys_pad_ldd_register_controller),             //570 (0x23A)
 	NULL_FUNC(sys_pad_ldd_unregister_controller),           //571 (0x23B)
 	NULL_FUNC(sys_pad_ldd_data_insert),                     //572 (0x23C)

@@ -83,6 +83,7 @@ error_code sys_usbd_get_device_location(ppu_thread& ppu, u32 handle, u32 device_
 error_code sys_usbd_send_event(ppu_thread& ppu);
 error_code sys_usbd_event_port_send(ppu_thread& ppu, u32 handle, u64 arg1, u64 arg2, u64 arg3);
 error_code sys_usbd_allocate_memory(ppu_thread& ppu);
+error_code sys_usbd_allocate_shared_memory(ppu_thread& ppu, u32 handle, vm::ptr<u32> arg1, vm::ptr<u32> arg2, u32 size);
 error_code sys_usbd_free_memory(ppu_thread& ppu);
 error_code sys_usbd_get_device_speed(ppu_thread& ppu);
 error_code sys_usbd_register_extra_ldd(ppu_thread& ppu, u32 handle, vm::cptr<char> s_product, u16 slen_product, u16 id_vendor, u16 id_product_min, u16 id_product_max);
