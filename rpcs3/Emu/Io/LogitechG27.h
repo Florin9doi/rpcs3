@@ -18,11 +18,22 @@
 
 enum class logitech_personality
 {
+	momo_force,
+	momo_racing_force,
+	gt_force,
+	driving_force,
 	driving_force_ex,
 	driving_force_pro,
 	g25,
 	driving_force_gt,
 	g27,
+
+	tms_rgt_ffb_pro,
+	tms_fgt_rumble,
+	tms_f430,
+	tms_ffb,
+	tms_t500_rs,
+
 	invalid,
 };
 
@@ -121,11 +132,20 @@ public:
 private:
 	void sdl_refresh();
 	void set_personality(logitech_personality personality, bool reconnect = false);
+	void transfer_mf(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_mrf(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_gtf(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_df(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	void transfer_dfex(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	void transfer_dfp(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	void transfer_dfgt(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	void transfer_g25(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	void transfer_g27(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_tms_rgt_ffb_pro(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_tms_fgt_rumble(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_tms_f430(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_tms_ffb(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
+	void transfer_tms_t500_rs(u32 buf_size, u8* buf, UsbTransfer* transfer) const;
 	SDL_HapticDirection make_steering_direction() const;
 
 	u32 m_controller_index = 0;
@@ -143,6 +163,7 @@ private:
 	u16 m_wheel_range = 200;
 	std::array<logitech_g27_ffb_slot, 4> m_effect_slots {};
 	SDL_HapticEffect m_default_spring_effect {};
+	bool m_tms_req_stat = false;
 
 	// TODO switch to SDL_HapticEffectID when it becomes available in a future SDL release
 	int m_default_spring_effect_id = -1;
