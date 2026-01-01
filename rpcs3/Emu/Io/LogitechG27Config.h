@@ -119,7 +119,7 @@ public:
 
 	cfg::_bool reverse_effects{this, "reverse_effects", false};
 	cfg::_enum<g27_ffb_direction_type> ffb_direction_type{this, "ffb_direction_type", g27_ffb_direction_type::steering_axis};
-	cfg::uint<0, 4> compatibility_limit{this, "compatibility_limit", 4};
+	cfg::uint<0, 255> compatibility_limit{this, "compatibility_limit", 6};
 	cfg::uint<0, 0xFFFFFFFFFFFFFFFF> ffb_device_type_id{this, "ffb_device_type_id", 0};
 	cfg::uint<0, 0xFFFFFFFFFFFFFFFF> led_device_type_id{this, "led_device_type_id", 0};
 

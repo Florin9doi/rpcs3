@@ -241,7 +241,7 @@ private:
 		{0x044F, 0xb655, 0xb655, "Thrustmaster FGT Rumble 3-in-1", nullptr, nullptr},
 		{0x044F, 0xB65A, 0xB65A, "Thrustmaster F430", nullptr, nullptr},
 		{0x044F, 0xB65D, 0xB65D, "Thrustmaster FFB", nullptr, nullptr},
-		{0x044F, 0xB65E, 0xB65E, "Thrustmaster TRS", nullptr, nullptr},
+		{0x044F, 0xB65E, 0xB65E, "Thrustmaster TRS", nullptr, nullptr}, // T500 RS
 		{0x044F, 0xB660, 0xB660, "Thrustmaster T500 RS Gear Shift", nullptr, nullptr},
 
 		// GT6

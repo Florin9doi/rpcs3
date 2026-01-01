@@ -599,7 +599,13 @@ void emulated_logitech_g27_settings_dialog::load_ui_state_from_config()
 	m_enabled->setChecked(g_cfg_logitech_g27.enabled.get());
 	m_reverse_effects->setChecked(g_cfg_logitech_g27.reverse_effects.get());
 	m_ffb_direction_type->setCurrentIndex(m_ffb_direction_type->findData(static_cast<int>(g_cfg_logitech_g27.ffb_direction_type.get())));
-	m_compatibility_limit->setCurrentIndex(4 - g_cfg_logitech_g27.compatibility_limit.get());
+	for (int i = 0; i < m_compatibility_limit->count(); i++)
+	{
+		if (m_compatibility_limit->itemData(i).toInt() == g_cfg_logitech_g27.compatibility_limit.get())
+		{
+			m_compatibility_limit->setCurrentIndex(i);
+		}
+	}
 }
 
 emulated_logitech_g27_settings_dialog::emulated_logitech_g27_settings_dialog(QWidget* parent)
@@ -681,6 +687,16 @@ emulated_logitech_g27_settings_dialog::emulated_logitech_g27_settings_dialog(QWi
 	m_compatibility_limit->addItem(tr("Driving Force GT"), static_cast<u8>(logitech_personality::driving_force_gt));
 	m_compatibility_limit->addItem(tr("G25"), static_cast<u8>(logitech_personality::g25));
 	m_compatibility_limit->addItem(tr("Driving Force Pro"), static_cast<u8>(logitech_personality::driving_force_pro));
+	//m_compatibility_limit->addItem(tr("Driving Force EX (do not use!"), static_cast<u8>(logitech_personality::driving_force_ex));
+	m_compatibility_limit->addItem(tr("Driving Force"), static_cast<u8>(logitech_personality::driving_force));
+	m_compatibility_limit->addItem(tr("GT Force"), static_cast<u8>(logitech_personality::gt_force));
+	m_compatibility_limit->addItem(tr("Momo Force"), static_cast<u8>(logitech_personality::momo_force));
+	m_compatibility_limit->addItem(tr("Momo Racing Force"), static_cast<u8>(logitech_personality::momo_racing_force));
+	m_compatibility_limit->addItem(tr("Thrustmaster RGT Force Feedback Pro"), static_cast<u8>(logitech_personality::tms_rgt_ffb_pro));
+	m_compatibility_limit->addItem(tr("Thrustmaster FGT Rumble (dogshit)"), static_cast<u8>(logitech_personality::tms_fgt_rumble));
+	m_compatibility_limit->addItem(tr("Thrustmaster F430"), static_cast<u8>(logitech_personality::tms_f430));
+	m_compatibility_limit->addItem(tr("Thrustmaster FFB"), static_cast<u8>(logitech_personality::tms_ffb));
+	m_compatibility_limit->addItem(tr("Thrustmaster T500 RS"), static_cast<u8>(logitech_personality::tms_t500_rs));
 	compat_layout->addWidget(m_compatibility_limit);
 	v_layout->addLayout(compat_layout);
 
