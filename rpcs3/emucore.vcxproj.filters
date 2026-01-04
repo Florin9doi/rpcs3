@@ -960,6 +960,9 @@
     <ClCompile Include="Emu\Io\GunCon3.cpp">
       <Filter>Emu\Io</Filter>
     </ClCompile>
+    <ClCompile Include="Emu\Io\BodyTracker.cpp">
+      <Filter>Emu\Io</Filter>
+    </ClCompile>
     <ClCompile Include="Emu\Io\Buzz.cpp">
       <Filter>Emu\Io</Filter>
     </ClCompile>
@@ -2301,6 +2304,9 @@
     <ClInclude Include="Emu\Io\GunCon3.h">
       <Filter>Emu\Io</Filter>
     </ClInclude>
+    <ClInclude Include="Emu\Io\BodyTracker.h">
+      <Filter>Emu\Io</Filter>
+    </ClInclude>
     <ClInclude Include="Emu\Io\Buzz.h">
       <Filter>Emu\Io</Filter>
     </ClInclude>
@@ -2672,6 +2678,9 @@
       <Filter>Emu\Io</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\midi_config_types.h">
+      <Filter>Emu\Io</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\bodytracker_config.h">
       <Filter>Emu\Io</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\buzz_config.h">

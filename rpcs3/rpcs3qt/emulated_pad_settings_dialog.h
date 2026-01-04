@@ -14,6 +14,7 @@ class emulated_pad_settings_dialog : public QDialog
 public:
 	enum class pad_type
 	{
+		bodytracker,
 		buzz,
 		turntable,
 		ghltar,

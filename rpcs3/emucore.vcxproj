@@ -83,6 +83,7 @@
     <ClCompile Include="Emu\Cell\Modules\sys_crashdump.cpp" />
     <ClCompile Include="Emu\Cell\Modules\HLE_PATCHES.cpp" />
     <ClCompile Include="Emu\games_config.cpp" />
+    <ClCompile Include="Emu\Io\BodyTracker.cpp" />
     <ClCompile Include="Emu\Io\Buzz.cpp" />
     <ClCompile Include="Emu\Io\camera_config.cpp" />
     <ClCompile Include="Emu\Io\evdev_gun_handler.cpp">
@@ -620,6 +621,8 @@
     <ClInclude Include="Emu\CPU\sse2neon.h" />
     <ClInclude Include="Emu\games_config.h" />
     <ClInclude Include="Emu\game_enumeration.h" />
+    <ClInclude Include="Emu\Io\BodyTracker.h" />
+    <ClInclude Include="Emu\Io\bodytracker_config.h" />
     <ClInclude Include="Emu\Io\Buzz.h" />
     <ClInclude Include="Emu\Io\buzz_config.h" />
     <ClInclude Include="Emu\Io\camera_config.h" />

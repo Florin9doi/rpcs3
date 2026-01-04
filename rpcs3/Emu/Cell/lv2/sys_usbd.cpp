@@ -25,6 +25,8 @@
 #include "Emu/Io/guncon3_config.h"
 #include "Emu/Io/topshotelite_config.h"
 #include "Emu/Io/topshotfearmaster_config.h"
+#include "Emu/Io/BodyTracker.h"
+#include "Emu/Io/bodytracker_config.h"
 #include "Emu/Io/Buzz.h"
 #include "Emu/Io/buzz_config.h"
 #include "Emu/Io/GameTablet.h"
@@ -64,6 +66,7 @@ cfg_guncon3 g_cfg_guncon3;
 cfg_topshotelite g_cfg_topshotelite;
 cfg_topshotfearmaster g_cfg_topshotfearmaster;
 cfg_rodandreel g_cfg_rodandreel;
+cfg_bodytracker g_cfg_bodytracker;
 
 extern atomic_t<bool> libusbd_active;
 
@@ -277,7 +280,7 @@ private:
 		{0x0AE4, 0x0004, 0x0004, "Densha de GO! Type 2 Controller", nullptr, nullptr},
 
 		// EA Active 2 dongle for connecting wristbands & legband
-		{0x21A4, 0xAC27, 0xAC27, "EA Active 2 Dongle", nullptr, nullptr},
+		{0x21A4, 0xAC27, 0xAC27, "EA Active 2 Dongle", &usb_device_bodytracker::get_num_emu_devices, &usb_device_bodytracker::make_instance},
 
 		// Tony Hawk RIDE Skateboard
 		{0x12BA, 0x0400, 0x0400, "Tony Hawk RIDE Skateboard Controller", nullptr, nullptr},
@@ -509,8 +512,13 @@ usb_handler_thread::usb_handler_thread()
 	{
 		sys_usbd.notice("Could not load usio config. Using defaults.");
 	}
-
 	sys_usbd.notice("USIO config=\n", g_cfg_usio.to_string());
+	
+	if (!g_cfg_bodytracker.load())
+	{
+		sys_usbd.notice("Could not load bodytracker config. Using defaults.");
+	}
+	sys_usbd.notice("Bodytracker config=\n", g_cfg_bodytracker.to_string());
 
 	if (g_cfg.io.ghltar == ghltar_handler::one_controller || g_cfg.io.ghltar == ghltar_handler::two_controllers)
 	{
