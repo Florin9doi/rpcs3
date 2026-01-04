@@ -263,6 +263,7 @@
      <property name="title">
       <string>Emulated Devices</string>
      </property>
+     <addaction name="confBodyTrackerAct"/>
      <addaction name="confBuzzAct"/>
      <addaction name="confGHLtarAct"/>
      <addaction name="confTurntableAct"/>
@@ -1498,6 +1499,11 @@
    </property>
    <property name="text">
     <string>System Commands</string>
+   </property>
+  </action>
+  <action name="confBodyTrackerAct">
+   <property name="text">
+    <string>BodyTracker</string>
    </property>
   </action>
   <action name="confBuzzAct">

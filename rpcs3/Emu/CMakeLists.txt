@@ -417,6 +417,7 @@ endif()
 
 # Io
 target_sources(rpcs3_emu PRIVATE
+    Io/BodyTracker.cpp
     Io/Buzz.cpp
     Io/camera_config.cpp
     Io/Dimensions.cpp

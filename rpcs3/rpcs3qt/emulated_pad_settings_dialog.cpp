@@ -3,6 +3,7 @@
 #include "localized_emu.h"
 #include "Input/raw_mouse_config.h"
 #include "Emu/Io/mouse_config.h"
+#include "Emu/Io/bodytracker_config.h"
 #include "Emu/Io/buzz_config.h"
 #include "Emu/Io/gem_config.h"
 #include "Emu/Io/ghltar_config.h"
@@ -74,6 +75,10 @@ emulated_pad_settings_dialog::emulated_pad_settings_dialog(pad_type type, QWidge
 
 	switch (m_type)
 	{
+	case emulated_pad_settings_dialog::pad_type::bodytracker:
+		setWindowTitle(tr("Configure Emulated Total Body Tracker"));
+		add_tabs<bodytracker_btn>(tabs);
+		break;
 	case emulated_pad_settings_dialog::pad_type::buzz:
 		setWindowTitle(tr("Configure Emulated Buzz"));
 		add_tabs<buzz_btn>(tabs);
@@ -163,6 +168,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 	usz players = 0;
 	switch (m_type)
 	{
+	case pad_type::bodytracker:
+		players = g_cfg_bodytracker.players.size();
+		break;
 	case pad_type::buzz:
 		players = g_cfg_buzz.players.size();
 		break;
@@ -304,6 +312,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 			pad_button saved_btn_id = pad_button::pad_button_max_enum;
 			switch (m_type)
 			{
+			case pad_type::bodytracker:
+				saved_btn_id = ::at32(g_cfg_bodytracker.players, player)->get_pad_button(static_cast<bodytracker_btn>(id));
+				break;
 			case pad_type::buzz:
 				saved_btn_id = ::at32(g_cfg_buzz.players, player)->get_pad_button(static_cast<buzz_btn>(id));
 				break;
@@ -354,6 +365,9 @@ void emulated_pad_settings_dialog::add_tabs(QTabWidget* tabs)
 
 				switch (m_type)
 				{
+				case pad_type::bodytracker:
+					::at32(g_cfg_bodytracker.players, player)->set_button(static_cast<bodytracker_btn>(id), btn_id);
+					break;
 				case pad_type::buzz:
 					::at32(g_cfg_buzz.players, player)->set_button(static_cast<buzz_btn>(id), btn_id);
 					break;
@@ -562,6 +576,12 @@ void emulated_pad_settings_dialog::load_config()
 {
 	switch (m_type)
 	{
+	case emulated_pad_settings_dialog::pad_type::bodytracker:
+		if (!g_cfg_bodytracker.load())
+		{
+			cfg_log.notice("Could not load bodytracker config. Using defaults.");
+		}
+		break;
 	case emulated_pad_settings_dialog::pad_type::buzz:
 		if (!g_cfg_buzz.load())
 		{
@@ -635,6 +655,9 @@ void emulated_pad_settings_dialog::save_config()
 {
 	switch (m_type)
 	{
+	case emulated_pad_settings_dialog::pad_type::bodytracker:
+		g_cfg_bodytracker.save();
+		break;
 	case emulated_pad_settings_dialog::pad_type::buzz:
 		g_cfg_buzz.save();
 		break;
@@ -675,6 +698,9 @@ void emulated_pad_settings_dialog::reset_config()
 {
 	switch (m_type)
 	{
+	case emulated_pad_settings_dialog::pad_type::bodytracker:
+		g_cfg_bodytracker.from_default();
+		break;
 	case emulated_pad_settings_dialog::pad_type::buzz:
 		g_cfg_buzz.from_default();
 		break;
@@ -724,6 +750,9 @@ void emulated_pad_settings_dialog::reset_config()
 			pad_button def_btn_id = pad_button::pad_button_max_enum;
 			switch (m_type)
 			{
+			case pad_type::bodytracker:
+				def_btn_id = ::at32(g_cfg_bodytracker.players, player)->default_pad_button(static_cast<bodytracker_btn>(data.toInt()));
+				break;
 			case pad_type::buzz:
 				def_btn_id = ::at32(g_cfg_buzz.players, player)->default_pad_button(static_cast<buzz_btn>(data.toInt()));
 				break;

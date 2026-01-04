@@ -3108,6 +3108,12 @@ void main_window::CreateConnects()
 
 	connect(ui->confPadsAct, &QAction::triggered, this, open_pad_settings);
 
+	connect(ui->confBodyTrackerAct, &QAction::triggered, this, [this]
+	{
+		emulated_pad_settings_dialog* dlg = new emulated_pad_settings_dialog(emulated_pad_settings_dialog::pad_type::bodytracker, this);
+		dlg->show();
+	});
+
 	connect(ui->confBuzzAct, &QAction::triggered, this, [this]
 	{
 		emulated_pad_settings_dialog* dlg = new emulated_pad_settings_dialog(emulated_pad_settings_dialog::pad_type::buzz, this);
