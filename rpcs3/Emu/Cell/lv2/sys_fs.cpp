@@ -1698,7 +1698,7 @@ error_code sys_fs_stat(ppu_thread& ppu, vm::cptr<char> path, vm::ptr<CellFsStat>
 
 	if (path_error)
 	{
-		return {path_error, vpath};
+		return not_an_error(path_error);
 	}
 
 	const std::string local_path = vfs::get(vpath);
