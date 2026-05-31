@@ -1,114 +1,114 @@
 [submodule "rpcs3-ffmpeg"]
 	path = 3rdparty/ffmpeg
-	url = ../../RPCS3/ffmpeg-core.git
+	url = https://github.com/RPCS3/ffmpeg-core.git
 	ignore = dirty
 [submodule "asmjit"]
 	path = 3rdparty/asmjit/asmjit
-	url = ../../asmjit/asmjit.git
+	url = https://github.com/asmjit/asmjit.git
 	branch = master
 	ignore = dirty
 [submodule "3rdparty/llvm/llvm"]
 	path = 3rdparty/llvm/llvm
-	url = ../../llvm/llvm-project.git
+	url = https://github.com/llvm/llvm-project.git
 	ignore = dirty
 [submodule "3rdparty/glslang"]
 	path = 3rdparty/glslang/glslang
-	url = ../../KhronosGroup/glslang.git
+	url = https://github.com/KhronosGroup/glslang.git
 	ignore = dirty
 [submodule "3rdparty/zlib"]
 	path = 3rdparty/zlib/zlib
-	url = ../../madler/zlib
+	url = https://github.com/madler/zlib
 	ignore = dirty
 [submodule "3rdparty/hidapi"]
 	path = 3rdparty/hidapi/hidapi
-	url = ../../libusb/hidapi.git
+	url = https://github.com/libusb/hidapi.git
 	branch = master
 	ignore = dirty
 [submodule "3rdparty/pugixml"]
 	path = 3rdparty/pugixml
-	url = ../../zeux/pugixml.git
+	url = https://github.com/zeux/pugixml.git
 	ignore = dirty
 [submodule "3rdparty/yaml-cpp"]
 	path = 3rdparty/yaml-cpp/yaml-cpp
-	url = ../../RPCS3/yaml-cpp.git
+	url = https://github.com/RPCS3/yaml-cpp.git
 	ignore = dirty
 [submodule "3rdparty/libpng"]
 	path = 3rdparty/libpng/libpng
-	url = ../../glennrp/libpng.git
+	url = https://github.com/glennrp/libpng.git
 	ignore = dirty
 [submodule "3rdparty/libusb"]
 	path = 3rdparty/libusb/libusb
-	url = ../../libusb/libusb.git
+	url = https://github.com/libusb/libusb.git
 	ignore = dirty
 [submodule "3rdparty/FAudio"]
 	path = 3rdparty/FAudio
-	url = ../../FNA-XNA/FAudio.git
+	url = https://github.com/FNA-XNA/FAudio.git
 	ignore = dirty
 [submodule "3rdparty/curl"]
 	path = 3rdparty/curl/curl
-	url = ../../curl/curl.git
+	url = https://github.com/curl/curl.git
 	ignore = dirty
 [submodule "3rdparty/wolfssl"]
 	path = 3rdparty/wolfssl/wolfssl
-	url = ../../wolfSSL/wolfssl.git
+	url = https://github.com/wolfSSL/wolfssl.git
 	ignore = dirty
 [submodule "3rdparty/cubeb/cubeb"]
 	path = 3rdparty/cubeb/cubeb
-	url = ../../mozilla/cubeb.git
+	url = https://github.com/mozilla/cubeb.git
 	ignore = dirty
 [submodule "3rdparty/SoundTouch/soundtouch"]
 	path = 3rdparty/SoundTouch/soundtouch
-	url = ../../RPCS3/soundtouch.git
+	url = https://github.com/RPCS3/soundtouch.git
 	ignore = dirty
 [submodule "3rdparty/libsdl-org/SDL"]
 	path = 3rdparty/libsdl-org/SDL
-	url = ../../libsdl-org/SDL.git
+	url = https://github.com/libsdl-org/SDL.git
 	ignore = dirty
 [submodule "3rdparty/miniupnp/miniupnp"]
 	path = 3rdparty/miniupnp/miniupnp
-	url = ../../miniupnp/miniupnp.git
+	url = https://github.com/miniupnp/miniupnp.git
 	ignore = dirty
 [submodule "3rdparty/rtmidi/rtmidi"]
 	path = 3rdparty/rtmidi/rtmidi
-	url = ../../thestk/rtmidi
+	url = https://github.com/thestk/rtmidi
 	ignore = dirty
 [submodule "3rdparty/zstd/zstd"]
 	path = 3rdparty/zstd/zstd
-	url = ../../facebook/zstd
+	url = https://github.com/facebook/zstd
 	ignore = dirty
 [submodule "3rdparty/7zip/7zip"]
 	path = 3rdparty/7zip/7zip
-	url = ../../ip7z/7zip.git
+	url = https://github.com/ip7z/7zip.git
 	ignore = dirty
 [submodule "3rdparty/OpenAL/openal-soft"]
 	path = 3rdparty/OpenAL/openal-soft
-	url = ../../kcat/openal-soft.git
+	url = https://github.com/kcat/openal-soft.git
 	ignore = dirty
 [submodule "3rdparty/stblib/stb"]
 	path = 3rdparty/stblib/stb
-	url = ../../nothings/stb.git
+	url = https://github.com/nothings/stb.git
 	ignore = dirty
 [submodule "3rdparty/opencv/opencv"]
 	path = 3rdparty/opencv/opencv
-	url = ../../Megamouse/opencv_minimal.git
+	url = https://github.com/Megamouse/opencv_minimal.git
 	ignore = dirty
 [submodule "3rdparty/fusion/fusion"]
 	path = 3rdparty/fusion/fusion
-	url = ../../xioTechnologies/Fusion.git
+	url = https://github.com/xioTechnologies/Fusion.git
 	ignore = dirty
 [submodule "3rdparty/discord-rpc/discord-rpc"]
 	path = 3rdparty/discord-rpc/discord-rpc
-	url = ../../Vestrel/discord-rpc
+	url = https://github.com/Vestrel/discord-rpc
 	ignore = dirty
 [submodule "3rdparty/GPUOpen/VulkanMemoryAllocator"]
 	path = 3rdparty/GPUOpen/VulkanMemoryAllocator
-	url = ../../GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 	ignore = dirty
 [submodule "3rdparty/feralinteractive/feralinteractive"]
 	path = 3rdparty/feralinteractive/feralinteractive
-	url = ../../FeralInteractive/gamemode.git
+	url = https://github.com/FeralInteractive/gamemode.git
 	ignore = dirty
 [submodule "3rdparty/protobuf/protobuf"]
 	path = 3rdparty/protobuf/protobuf
-	url = ../../protocolbuffers/protobuf.git
+	url = https://github.com/protocolbuffers/protobuf.git
 	ignore = dirty
