@@ -3,6 +3,14 @@
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
 #endif
 
 #include "sys_usbd.h"
@@ -10,6 +18,8 @@
 #include "sys_sync.h"
 
 #include <queue>
+#include <thread>
+#include <vector>
 #include "Emu/System.h"
 #include "Emu/system_config.h"
 #include "Emu/IdManager.h"
@@ -320,12 +330,16 @@ struct pspcm_manager
 	pspcm_manager();
 	~pspcm_manager();
 	int start_server();
+	void close_server();
+	void disconnect();
+	void process_stream();
 
 	static constexpr auto thread_name = "UsbPspCm manager"sv;
 
 private:
 	bool m_device_connected = false;
-	int m_server_socket = -1;
+	s64 m_server_socket = -1; // SOCKET or fd, -1 when there is none
+	std::vector<u8> m_stream; // received bytes not yet forming a whole packet
 	std::shared_ptr<usb_device_psp> m_psp_dev;
 };
 
@@ -1795,162 +1809,228 @@ error_code sys_usbd_get_device_speed(ppu_thread& ppu)
 }
 
 
+namespace
+{
+#ifdef _WIN32
+	using pspcm_socket_t = SOCKET;
+	constexpr pspcm_socket_t PSPCM_INVALID_SOCKET = INVALID_SOCKET;
+	void pspcm_close_socket(pspcm_socket_t s) { closesocket(s); }
+	bool pspcm_would_block() { return WSAGetLastError() == WSAEWOULDBLOCK; }
+	constexpr int PSPCM_SEND_FLAGS = 0;
+#else
+	using pspcm_socket_t = int;
+	constexpr pspcm_socket_t PSPCM_INVALID_SOCKET = -1;
+	void pspcm_close_socket(pspcm_socket_t s) { close(s); }
+	bool pspcm_would_block() { return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR; }
+	constexpr int PSPCM_SEND_FLAGS = MSG_NOSIGNAL; // a closed peer must not raise SIGPIPE
+#endif
+
+	// The socket is non blocking, so wait for it when its buffer is full.
+	bool pspcm_send_all(pspcm_socket_t s, const char* data, int size)
+	{
+		int sent = 0;
+		int stalled = 0;
+		while (sent < size)
+		{
+			const int ret = static_cast<int>(send(s, data + sent, size - sent, PSPCM_SEND_FLAGS));
+			if (ret > 0)
+			{
+				sent += ret;
+				stalled = 0;
+			}
+			else if (ret < 0 && pspcm_would_block() && stalled++ < 2000)
+			{
+				std::this_thread::sleep_for(1ms);
+			}
+			else
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
 pspcm_manager::pspcm_manager()
 {
-	sys_usbd.error("usb_psp_cm_thread::usb_psp_cm_thread()");
+	sys_usbd.notice("pspcm_manager::pspcm_manager()");
+#ifdef _WIN32
+	WSADATA wsa_data;
+	WSAStartup(MAKEWORD(2, 2), &wsa_data);
+#endif
 }
 
 pspcm_manager::~pspcm_manager()
 {
-	sys_usbd.error("usb_psp_cm_thread::~usb_psp_cm_thread()");
-	if (m_server_socket)
+	sys_usbd.notice("pspcm_manager::~pspcm_manager()");
+	close_server();
+}
+
+void pspcm_manager::close_server()
+{
+	if (m_server_socket != static_cast<s64>(PSPCM_INVALID_SOCKET))
 	{
-		shutdown(m_server_socket, SD_SEND);
+		shutdown(static_cast<pspcm_socket_t>(m_server_socket), 2 /* both directions */);
+		pspcm_close_socket(static_cast<pspcm_socket_t>(m_server_socket));
+		m_server_socket = static_cast<s64>(PSPCM_INVALID_SOCKET);
 	}
+	m_stream.clear();
 }
 
 int pspcm_manager::start_server()
 {
 	struct addrinfo hints{};
-	struct addrinfo* info;
+	struct addrinfo* info = nullptr;
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	if (getaddrinfo("127.0.0.1", "27015", &hints, &info) != 0)
+	if (getaddrinfo("127.0.0.1", "27015", &hints, &info) != 0 || !info)
 	{
 		sys_usbd.error("pspcm_manager: getaddrinfo error");
 		return -1;
 	}
 
-	m_server_socket = static_cast<int>(socket(info->ai_family, info->ai_socktype, info->ai_protocol));
-	if (m_server_socket == -1)
+	const pspcm_socket_t s = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
+	if (s == PSPCM_INVALID_SOCKET)
 	{
 		sys_usbd.error("pspcm_manager: Error creating socket");
 		freeaddrinfo(info);
 		return -2;
 	}
 
-	if (connect(m_server_socket, info->ai_addr, info->ai_addrlen) != 0)
+	if (connect(s, info->ai_addr, static_cast<int>(info->ai_addrlen)) != 0)
 	{
-		//sys_usbd.error("pspcm_manager: Error connecting");
+		// PPSSPP isn't listening (yet), this is retried
 		freeaddrinfo(info);
+		pspcm_close_socket(s);
 		return -3;
 	}
 	freeaddrinfo(info);
 
+	// The packets are small and the PSP waits for the answers
+	const int one = 1;
+	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&one), sizeof(one));
+
 #ifdef _WIN32
 	u_long mode = 1;
-	ioctlsocket(m_server_socket, FIONBIO, &mode);
+	ioctlsocket(s, FIONBIO, &mode);
 #else
-	fcntl(m_server_socket, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK);
+	fcntl(s, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK);
 #endif
 
+	m_server_socket = static_cast<s64>(s);
+	m_stream.clear();
 	return 0;
+}
+
+void pspcm_manager::disconnect()
+{
+	if (!m_device_connected)
+	{
+		return;
+	}
+
+	sys_usbd.notice("pspcm_manager: PSP disconnected");
+	m_device_connected = false;
+	close_server();
+
+	auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
+	std::lock_guard lock(usbh.mutex);
+	usbh.disconnect_usb_device(m_psp_dev);
+	m_psp_dev.reset();
+}
+
+// The TCP stream has no packet boundaries: take the complete packets, as long as there are some.
+void pspcm_manager::process_stream()
+{
+	while (m_stream.size() >= PSPCM_HEADER_LEN)
+	{
+		if (m_stream[0] != 0xf0 || m_stream[1] != 0x0f || m_stream[2] < PSPCM_HEADER_LEN)
+		{
+			sys_usbd.warning("pspcm_manager: lost sync, skipping a byte (%02x)", m_stream[0]);
+			m_stream.erase(m_stream.begin());
+			continue;
+		}
+
+		const usz len = m_stream[2];
+		if (m_stream.size() < len)
+		{
+			break; // the rest comes later
+		}
+
+		pspcm_data pk{};
+		std::memcpy(&pk, m_stream.data(), std::min<usz>(len, sizeof(pk)));
+		m_stream.erase(m_stream.begin(), m_stream.begin() + len);
+
+		if (!m_psp_dev->add_from_psp(pk))
+		{
+			sys_usbd.warning("pspcm_manager: packet for unknown endpoint %02x dropped", pk.endpoint);
+		}
+	}
 }
 
 void pspcm_manager::operator()()
 {
-	char recvbuf[1000];
-	int recvbuflen = 1000;
-
 	while (thread_ctrl::state() != thread_state::aborting)
 	{
-		//sys_usbd.error("pspcm_manager::operator() loop");
-
 		if (!m_device_connected)
 		{
-			int ret = start_server();
-			//sys_usbd.error("start_server() = %d", ret);
-			if (ret == 0)
+			if (start_server() == 0)
 			{
-				m_device_connected = true;
+				sys_usbd.notice("pspcm_manager: connected to PPSSPP");
 				auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
 				std::lock_guard lock(usbh.mutex);
 				m_psp_dev = std::make_shared<usb_device_psp>(usbh.get_new_location());
 				usbh.connect_usb_device(m_psp_dev);
+				m_device_connected = true;
 			}
 			else
 			{
 				std::this_thread::sleep_for(200ms);
 			}
+			continue;
 		}
-		if (m_device_connected)
+
+		const pspcm_socket_t s = static_cast<pspcm_socket_t>(m_server_socket);
+
+		// To the PSP
+		pspcm_data pk{};
+		bool failed = false;
+		while (!failed && m_psp_dev->get_output(pk))
 		{
-			while (m_psp_dev->get_output_size())
+			const int len = std::min<int>(pk.totalLen, sizeof(pk));
+			if (!pspcm_send_all(s, reinterpret_cast<const char*>(&pk), len))
 			{
-				struct pspcm_data d = m_psp_dev->get_output();
-				int ret = send(m_server_socket, (const char*)&d, d.totalLen, 0);
-				if (ret < 0)
-				{
-					sys_usbd.error("socket disconnected ");
-					m_device_connected = false;
-					auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
-					std::lock_guard lock(usbh.mutex);
-					usbh.disconnect_usb_device(m_psp_dev);
-					break;
-				}
-				else if (ret)
-				{
-					sys_usbd.error("send = %d", ret);
-				}
-
-				if (d.endpoint == 0)
-				{
-					int retry = 500;
-					while (retry-- > 0)
-					{
-						int ret = recv(m_server_socket, recvbuf, recvbuflen, 0);
-						if (ret >= 0)
-						{
-							sys_usbd.error("recv = %d", ret);
-							struct pspcm_data* resp = (struct pspcm_data*)recvbuf;
-							if (resp->magic == 0x0ff0)
-							{
-								switch (resp->endpoint)
-								{
-								case 0:
-									m_psp_dev->add_ctrl_resp(*resp);
-									break;
-								case PSPCM_EP_BULK_IN:
-									m_psp_dev->add_bulk_in(*resp);
-									break;
-								case PSPCM_EP_INTERRUPT_IN:
-									m_psp_dev->add_interrupt_in(*resp);
-									break;
-								}
-							}
-							break;
-						}
-						std::this_thread::sleep_for(1ms);
-					}
-				}
-
-				ret = recv(m_server_socket, recvbuf, recvbuflen, 0);
-				if (ret >= 0)
-				{
-					sys_usbd.error("recv = %d", ret);
-					struct pspcm_data* resp = (struct pspcm_data*)recvbuf;
-					if (resp->magic == 0x0ff0)
-					{
-						switch (resp->endpoint)
-						{
-						case 0:
-							m_psp_dev->add_ctrl_resp(*resp);
-							break;
-						case PSPCM_EP_BULK_IN:
-							m_psp_dev->add_bulk_in(*resp);
-							break;
-						case PSPCM_EP_INTERRUPT_IN:
-							m_psp_dev->add_interrupt_in(*resp);
-							break;
-						}
-					}
-					break;
-				}
-
+				failed = true;
 			}
 		}
-		std::this_thread::sleep_for(10ms);
+
+		// From the PSP. 0 is the peer closing the connection, which the sends alone don't tell.
+		char buf[512];
+		while (!failed)
+		{
+			const int ret = static_cast<int>(recv(s, buf, sizeof(buf), 0));
+			if (ret > 0)
+			{
+				m_stream.insert(m_stream.end(), buf, buf + ret);
+				process_stream();
+			}
+			else
+			{
+				failed = ret == 0 || !pspcm_would_block();
+				break;
+			}
+		}
+
+		if (failed)
+		{
+			disconnect();
+			continue;
+		}
+
+		std::this_thread::sleep_for(1ms);
 	}
+
+	disconnect();
 }
