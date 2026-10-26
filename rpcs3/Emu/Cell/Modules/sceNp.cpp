@@ -2229,7 +2229,7 @@ error_code sceNpBasicGetMessageAttachmentEntry(u32 index, vm::ptr<SceNpUserInfo>
 
 error_code sceNpBasicGetCustomInvitationEntryCount(vm::ptr<u32> count)
 {
-	sceNp.todo("sceNpBasicGetCustomInvitationEntryCount(count=*0x%x)", count);
+	sceNp.trace("sceNpBasicGetCustomInvitationEntryCount(count=*0x%x)", count);
 
 	auto& nph = g_fxo->get<named_thread<np::np_handler>>();
 
