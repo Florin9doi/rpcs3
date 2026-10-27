@@ -333,6 +333,9 @@ struct pspcm_manager
 	void close_server();
 	void disconnect();
 	void process_stream();
+	bool take_packet(pspcm_data& pk);
+	bool control_in(u8 request, u16 value, u16 index, std::vector<u8>& out);
+	bool fetch_descriptors(pspcm_descriptors& desc);
 
 	static constexpr auto thread_name = "UsbPspCm manager"sv;
 
@@ -1941,8 +1944,8 @@ void pspcm_manager::disconnect()
 	m_psp_dev.reset();
 }
 
-// The TCP stream has no packet boundaries: take the complete packets, as long as there are some.
-void pspcm_manager::process_stream()
+// The TCP stream has no packet boundaries: takes the first complete packet, if there is one.
+bool pspcm_manager::take_packet(pspcm_data& pk)
 {
 	while (m_stream.size() >= PSPCM_HEADER_LEN)
 	{
@@ -1956,18 +1959,128 @@ void pspcm_manager::process_stream()
 		const usz len = m_stream[2];
 		if (m_stream.size() < len)
 		{
-			break; // the rest comes later
+			return false; // the rest comes later
 		}
 
-		pspcm_data pk{};
+		pk = {};
 		std::memcpy(&pk, m_stream.data(), std::min<usz>(len, sizeof(pk)));
 		m_stream.erase(m_stream.begin(), m_stream.begin() + len);
+		return true;
+	}
+	return false;
+}
 
+void pspcm_manager::process_stream()
+{
+	pspcm_data pk{};
+	while (take_packet(pk))
+	{
 		if (!m_psp_dev->add_from_psp(pk))
 		{
 			sys_usbd.warning("pspcm_manager: packet for unknown endpoint %02x dropped", pk.endpoint);
 		}
 	}
+}
+
+// A standard device to host control request, before the device is plugged. out = the data of the reply.
+bool pspcm_manager::control_in(u8 request, u16 value, u16 index, std::vector<u8>& out)
+{
+	const pspcm_socket_t s = static_cast<pspcm_socket_t>(m_server_socket);
+
+	pspcm_data pk{};
+	pk.magic = PSPCM_MAGIC;
+	pk.totalLen = static_cast<u8>(PSPCM_CTRL_HEADER_LEN);
+	pk.endpoint = 0;
+	pk.ctrl.bmRequestType = 0x80; // device to host, standard, device
+	pk.ctrl.bRequest = request;
+	pk.ctrl.wValue = value;
+	pk.ctrl.wIndex = index;
+	pk.ctrl.wLength = PSPCM_MAX_DATA;
+	if (!pspcm_send_all(s, reinterpret_cast<const char*>(&pk), PSPCM_CTRL_HEADER_LEN))
+	{
+		return false;
+	}
+
+	for (u32 retry = 0; retry < PSPCM_CTRL_TIMEOUT_MS && thread_ctrl::state() != thread_state::aborting; retry++)
+	{
+		char buf[512];
+		const int ret = static_cast<int>(recv(s, buf, sizeof(buf), 0));
+		if (ret > 0)
+		{
+			m_stream.insert(m_stream.end(), buf, buf + ret);
+		}
+		else if (ret == 0 || !pspcm_would_block())
+		{
+			return false;
+		}
+
+		pspcm_data resp{};
+		while (take_packet(resp))
+		{
+			if (resp.endpoint == 0 && resp.ctrl.bRequest == request)
+			{
+				const u32 len = resp.totalLen > PSPCM_CTRL_HEADER_LEN ? std::min<u32>(resp.totalLen - PSPCM_CTRL_HEADER_LEN, PSPCM_MAX_DATA) : 0;
+				out.assign(reinterpret_cast<const u8*>(resp.ctrl.data), reinterpret_cast<const u8*>(resp.ctrl.data) + len);
+				return len > 0;
+			}
+		}
+		std::this_thread::sleep_for(1ms);
+	}
+	return false;
+}
+
+// Reads the device, the configuration and the strings it uses from the PSP.
+bool pspcm_manager::fetch_descriptors(pspcm_descriptors& desc)
+{
+	if (!control_in(6 /* GET_DESCRIPTOR */, USB_DESCRIPTOR_DEVICE << 8, 0, desc.device) || desc.device.size() != 18)
+	{
+		return false;
+	}
+
+	if (!control_in(6, USB_DESCRIPTOR_CONFIG << 8, 0, desc.config) || desc.config.size() < 9)
+	{
+		return false;
+	}
+	const usz total = desc.config[2] | (desc.config[3] << 8);
+	if (desc.config.size() < total)
+	{
+		sys_usbd.error("pspcm_manager: the configuration is %d bytes, only %d fit a packet", total, desc.config.size());
+		return false;
+	}
+	desc.config.resize(total);
+
+	// The strings the descriptors point to: the device's, the configuration's and the interfaces'.
+	u8 last_string = std::max({ desc.device[14], desc.device[15], desc.device[16], desc.config[6] });
+	for (usz pos = 9; pos + 9 <= desc.config.size() && desc.config[pos] >= 2; pos += desc.config[pos])
+	{
+		if (desc.config[pos + 1] == USB_DESCRIPTOR_INTERFACE)
+		{
+			last_string = std::max(last_string, desc.config[pos + 8]);
+		}
+	}
+
+	u16 langid = 0x0409;
+	std::vector<u8> str;
+	if (last_string && control_in(6, USB_DESCRIPTOR_STRING << 8, 0, str) && str.size() >= 4)
+	{
+		langid = str[2] | (str[3] << 8);
+	}
+
+	for (u32 i = 1; i <= last_string; i++)
+	{
+		std::string text;
+		if (control_in(6, (USB_DESCRIPTOR_STRING << 8) | i, langid, str) && str.size() >= 2)
+		{
+			std::u16string u16;
+			for (usz p = 2; p + 1 < str.size() && p < str[0]; p += 2)
+			{
+				u16.push_back(static_cast<char16_t>(str[p] | (str[p + 1] << 8)));
+			}
+			text = utf16_to_utf8(u16);
+		}
+		desc.strings.push_back(std::move(text));
+	}
+	return true;
 }
 
 void pspcm_manager::operator()()
@@ -1979,9 +2092,16 @@ void pspcm_manager::operator()()
 			if (start_server() == 0)
 			{
 				sys_usbd.notice("pspcm_manager: connected to PPSSPP");
+				// What the device is comes from the PSP, the built-in descriptors are the fallback.
+				pspcm_descriptors desc;
+				const bool have_desc = fetch_descriptors(desc);
+				if (!have_desc)
+				{
+					sys_usbd.warning("pspcm_manager: no descriptors from the PSP, using the built-in ones");
+				}
 				auto& usbh = g_fxo->get<named_thread<usb_handler_thread>>();
 				std::lock_guard lock(usbh.mutex);
-				m_psp_dev = std::make_shared<usb_device_psp>(usbh.get_new_location());
+				m_psp_dev = std::make_shared<usb_device_psp>(usbh.get_new_location(), have_desc ? &desc : nullptr);
 				usbh.connect_usb_device(m_psp_dev);
 				m_device_connected = true;
 			}

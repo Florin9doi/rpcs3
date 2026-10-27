@@ -11,7 +11,7 @@
 
 LOG_CHANNEL(psp_log);
 
-usb_device_psp::usb_device_psp(const std::array<u8, 7>& location)
+usb_device_psp::usb_device_psp(const std::array<u8, 7>& location, const pspcm_descriptors* desc)
 	: usb_device_emulated(location)
 {
 	device = UsbDescriptorNode(USB_DESCRIPTOR_DEVICE,
@@ -66,7 +66,41 @@ usb_device_psp::usb_device_psp(const std::array<u8, 7>& location)
 
 	add_string("Sony");
 	add_string("PSP Type D");
+	if (desc && !load_descriptors(*desc))
+	{
+		psp_log.error("usb_device_psp: the descriptors of the PSP are not valid, using the built-in ones");
+	}
 	psp_log.error("usb_device_psp::usb_device_psp()");
+}
+
+bool usb_device_psp::load_descriptors(const pspcm_descriptors& desc)
+{
+	const auto& d = desc.device;
+	const auto& c = desc.config;
+	if (d.size() != 18 || d[0] != 18 || d[1] != USB_DESCRIPTOR_DEVICE || c.size() < 9 || c[0] != 9 || c[1] != USB_DESCRIPTOR_CONFIG)
+	{
+		return false;
+	}
+
+	UsbDescriptorNode new_device(18, USB_DESCRIPTOR_DEVICE, d.data() + 2);
+	UsbDescriptorNode new_config(9, USB_DESCRIPTOR_CONFIG, c.data() + 2);
+
+	// The interfaces and endpoints are sub nodes of the configuration, in the order they are listed.
+	for (usz pos = 9; pos < c.size();)
+	{
+		const u8 len = c[pos];
+		if (len < 2 || pos + len > c.size())
+		{
+			return false;
+		}
+		new_config.add_node(UsbDescriptorNode(len, c[pos + 1], c.data() + pos + 2));
+		pos += len;
+	}
+
+	new_device.add_node(new_config);
+	device = std::move(new_device);
+	strings = desc.strings;
+	return true;
 }
 
 usb_device_psp::~usb_device_psp()
@@ -136,12 +170,12 @@ void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue,
 	}
 }
 
-void usb_device_psp::take_in_data(pspcm_queue& queue, u32 buf_size, u8* buf, UsbTransfer* transfer)
+bool usb_device_psp::take_in_data(pspcm_queue& queue, u32 buf_size, u8* buf, UsbTransfer* transfer)
 {
 	pspcm_data pk{};
 	if (!queue.pop(pk))
 	{
-		return;
+		return false;
 	}
 
 	const u32 payload = pk.totalLen > PSPCM_HEADER_LEN ? std::min<u32>(pk.totalLen - PSPCM_HEADER_LEN, PSPCM_MAX_DATA) : 0;
@@ -160,6 +194,28 @@ void usb_device_psp::take_in_data(pspcm_queue& queue, u32 buf_size, u8* buf, Usb
 		pk.totalLen = static_cast<u8>(PSPCM_HEADER_LEN + payload - len);
 		queue.push_front(pk);
 	}
+	return true;
+}
+
+void usb_device_psp::request_in(u32 endpoint, u32 buf_size)
+{
+	// The guest polls these endpoints all the time. One request goes out, the rest are dropped until
+	// the PSP answers, the timeout is for an answer that never comes.
+	auto& since = m_in_request_since[in_endpoint_index(endpoint)];
+	const s64 now = now_ms();
+	const s64 sent = since.load();
+	if (sent != 0 && now - sent < PSPCM_IN_REQUEST_TIMEOUT_MS)
+	{
+		return;
+	}
+	since = now;
+
+	pspcm_data pk{};
+	pk.magic = PSPCM_MAGIC;
+	pk.totalLen = static_cast<u8>(PSPCM_HEADER_LEN + 1);
+	pk.endpoint = static_cast<u8>(endpoint);
+	pk.bulk.data[0] = static_cast<char>(std::min(buf_size, PSPCM_MAX_DATA));
+	m_out_data.push(pk);
 }
 
 void usb_device_psp::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, UsbTransfer* transfer)
@@ -173,10 +229,16 @@ void usb_device_psp::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, Usb
 	switch (endpoint)
 	{
 	case PSPCM_EP_BULK_IN: // 0x81
-		take_in_data(m_bulk_in, buf_size, buf, transfer);
+		if (!take_in_data(m_bulk_in, buf_size, buf, transfer))
+		{
+			request_in(endpoint, buf_size);
+		}
 		break;
 	case PSPCM_EP_INTERRUPT_IN: // 0x83
-		take_in_data(m_interrupt_in, buf_size, buf, transfer);
+		if (!take_in_data(m_interrupt_in, buf_size, buf, transfer))
+		{
+			request_in(endpoint, buf_size);
+		}
 		break;
 	case PSPCM_EP_BULK_OUT: // 0x02
 		add_data(endpoint, buf_size, buf);
@@ -199,9 +261,11 @@ bool usb_device_psp::add_from_psp(const pspcm_data& pk)
 		return true;
 	case PSPCM_EP_BULK_IN:
 		m_bulk_in.push(pk);
+		m_in_request_since[0] = 0; // answered, the next poll may ask again
 		return true;
 	case PSPCM_EP_INTERRUPT_IN:
 		m_interrupt_in.push(pk);
+		m_in_request_since[1] = 0;
 		return true;
 	}
 	return false;
