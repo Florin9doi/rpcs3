@@ -455,6 +455,8 @@ target_sources(rpcs3_emu PRIVATE
     Io/usb_microphone.cpp
     Io/usb_vfs.cpp
     Io/usio.cpp
+    Io/PSP.cpp
+    Io/pspcm_manager.cpp
     Io/LogitechG27.cpp
     Io/LogitechG27Config.cpp
 )

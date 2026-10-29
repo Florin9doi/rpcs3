@@ -1425,7 +1425,10 @@
     </ClCompile>
     <ClCompile Include="Emu\Io\PSP.cpp">
       <Filter>Emu\Io</Filter>
-    </ClInclude>
+    </ClCompile>
+    <ClCompile Include="Emu\Io\pspcm_manager.cpp">
+      <Filter>Emu\Io</Filter>
+    </ClCompile>
     <ClCompile Include="Emu\NP\clans_config.cpp">
       <Filter>Emu\NP</Filter>
     </ClCompile>
@@ -2963,6 +2966,9 @@
       <Filter>Emu\Io</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\PSP.h">
+      <Filter>Emu\Io</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\pspcm_manager.h">
       <Filter>Emu\Io</Filter>
     </ClInclude>
     <ClInclude Include="Emu\NP\clans_client.h">
