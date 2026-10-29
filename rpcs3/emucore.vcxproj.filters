@@ -1576,6 +1576,9 @@
     <ClCompile Include="Emu\Io\PSP.cpp">
       <Filter>Emu\Io\PSP</Filter>
     </ClInclude>
+    <ClCompile Include="Emu\Io\pspcm_manager.cpp">
+      <Filter>Emu\Io\PSP</Filter>
+    </ClCompile>
     <ClCompile Include="Emu\Io\Turntable.cpp">
       <Filter>Emu\Io\Turntable</Filter>
     </ClCompile>
@@ -3170,6 +3173,9 @@
       <Filter>Emu\Io\PsMove</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\PSP.h">
+      <Filter>Emu\Io\PSP</Filter>
+    </ClInclude>
+    <ClInclude Include="Emu\Io\pspcm_manager.h">
       <Filter>Emu\Io\PSP</Filter>
     </ClInclude>
     <ClInclude Include="Emu\Io\turntable_config.h">
