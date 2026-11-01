@@ -187,6 +187,9 @@
     <Filter Include="Emu\Io\PsMove">
       <UniqueIdentifier>{840c7baa-7d6c-4d5f-b0bf-4d604d9bd188}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Emu\Io\PSP">
+      <UniqueIdentifier>{75437732-be80-43eb-94cc-36cbe90ff9c9}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Emu\Io\Turntable">
       <UniqueIdentifier>{c817ce44-1af8-493d-ad69-2030580ac3db}</UniqueIdentifier>
     </Filter>
@@ -1575,7 +1578,7 @@
     </ClCompile>
     <ClCompile Include="Emu\Io\PSP.cpp">
       <Filter>Emu\Io\PSP</Filter>
-    </ClInclude>
+    </ClCompile>
     <ClCompile Include="Emu\Io\pspcm_manager.cpp">
       <Filter>Emu\Io\PSP</Filter>
     </ClCompile>

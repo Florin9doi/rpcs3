@@ -740,7 +740,7 @@ void usb_handler_thread::transfer_complete(struct libusb_transfer* transfer)
 
 	if (transfer->status != 0)
 	{
-		sys_usbd.error("Transfer Error: %d", +transfer->status);
+		sys_usbd.error("Transfer Error: ep=0x%x, status=%d", +transfer->endpoint, +transfer->status);
 	}
 
 	switch (transfer->status)

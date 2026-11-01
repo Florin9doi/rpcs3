@@ -22,25 +22,20 @@
 //    again until it was answered (or PSPCM_IN_REQUEST_TIMEOUT_MS passed).
 #pragma pack(push, 1)
 struct pspcm_data {
-	uint16_t magic;
-	uint8_t totalLen;
-	uint8_t endpoint;
+	u16 magic;
+	u8 totalLen;
+	u8 endpoint;
 
 	union {
 		struct {
-			uint8_t bmRequestType;
-			uint8_t bRequest;
-			uint16_t wValue;
-			uint16_t wIndex;
-			uint16_t wLength;
-			char data[0x40];
+			u8 bmRequestType;
+			u8 bRequest;
+			u16 wValue;
+			u16 wIndex;
+			u16 wLength;
+			u8 data[0x40];
 		} ctrl;
-		struct {
-			char data[0x40];
-		} bulk;
-		struct {
-			char data[0x40];
-		} interrupt;
+		u8 bulk_data[0x40];
 	};
 };
 #pragma pack(pop)
@@ -126,6 +121,9 @@ private:
 	pspcm_queue m_ctrl_resp;
 	pspcm_queue m_bulk_in;
 	pspcm_queue m_interrupt_in;
+	UsbTransfer* m_pending_bulk_in;
+	u32 m_pending_size;
+	u8* m_pending_buf;
 	// When the request for an IN endpoint (0: bulk, 1: interrupt) was sent, 0 if none is waiting.
 	std::atomic<s64> m_in_request_since[2]{};
 	static int in_endpoint_index(u32 endpoint) { return endpoint == PSPCM_EP_BULK_IN ? 0 : 1; }

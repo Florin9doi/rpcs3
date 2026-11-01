@@ -149,8 +149,6 @@ void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue,
 			break;
 		}
 
-		psp_log.error("   get_response reqType=%x  bRequest=%x, wLength=%x, totalLen=%x", resp.ctrl.bmRequestType, resp.ctrl.bRequest, resp.ctrl.wLength, resp.totalLen);
-
 		if (device_to_host)
 		{
 			// What the PSP sent, which can be less than the host asked for.
@@ -162,6 +160,8 @@ void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue,
 			}
 			transfer->expected_count = len;
 		}
+
+		psp_log.error("    get_response reqType=%x  bRequest=%x, wLength=%x, len=%x", resp.ctrl.bmRequestType, resp.ctrl.bRequest, resp.ctrl.wLength, transfer->expected_count);
 		break;
 	}
 	default:
@@ -180,17 +180,17 @@ bool usb_device_psp::take_in_data(pspcm_queue& queue, u32 buf_size, u8* buf, Usb
 
 	const u32 payload = pk.totalLen > PSPCM_HEADER_LEN ? std::min<u32>(pk.totalLen - PSPCM_HEADER_LEN, PSPCM_MAX_DATA) : 0;
 	const u32 len = std::min(payload, buf_size);
-	psp_log.error("interrupt_transfer: in : ep=%02x, len=%d", pk.endpoint, len);
+	psp_log.error("    interrupt_transfer: in : ep=%02x, len=0x%x", pk.endpoint, len);
 
 	if (buf && len)
 	{
-		std::memcpy(buf, pk.bulk.data, len);
+		std::memcpy(buf, pk.bulk_data, len);
 	}
 	transfer->expected_count = len;
 
 	if (len < payload)
 	{
-		std::memmove(pk.bulk.data, pk.bulk.data + len, payload - len);
+		std::memmove(pk.bulk_data, pk.bulk_data + len, payload - len);
 		pk.totalLen = static_cast<u8>(PSPCM_HEADER_LEN + payload - len);
 		queue.push_front(pk);
 	}
@@ -214,7 +214,7 @@ void usb_device_psp::request_in(u32 endpoint, u32 buf_size)
 	pk.magic = PSPCM_MAGIC;
 	pk.totalLen = static_cast<u8>(PSPCM_HEADER_LEN + 1);
 	pk.endpoint = static_cast<u8>(endpoint);
-	pk.bulk.data[0] = static_cast<char>(std::min(buf_size, PSPCM_MAX_DATA));
+	pk.bulk_data[0] = static_cast<char>(std::min(buf_size, PSPCM_MAX_DATA));
 	m_out_data.push(pk);
 }
 
@@ -223,15 +223,21 @@ void usb_device_psp::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, Usb
 	transfer->fake = true;
 	transfer->expected_result = HC_CC_NOERR;
 	transfer->expected_count = 0;
-	transfer->expected_time = get_timestamp();
+	transfer->expected_time = get_timestamp() + 1000;
 
-	psp_log.error("interrupt_transfer: buf_size=%x, endpoint=%x", buf_size, endpoint);
+	psp_log.error("interrupt_transfer: ep=0x%x, buf_size=0x%x", endpoint, buf_size);
 	switch (endpoint)
 	{
 	case PSPCM_EP_BULK_IN: // 0x81
 		if (!take_in_data(m_bulk_in, buf_size, buf, transfer))
 		{
 			request_in(endpoint, buf_size);
+			//transfer->expected_result = EHCI_CC_HALTED;
+			//transfer->expected_count = 0;
+			transfer->expected_time = get_timestamp() + (5 * 1000 * 1000); // 5 sec
+			m_pending_bulk_in = transfer;
+			m_pending_size = buf_size;
+			m_pending_buf = buf;
 		}
 		break;
 	case PSPCM_EP_INTERRUPT_IN: // 0x83
@@ -261,10 +267,18 @@ bool usb_device_psp::add_from_psp(const pspcm_data& pk)
 		return true;
 	case PSPCM_EP_BULK_IN:
 		m_bulk_in.push(pk);
+		psp_log.error("        add_from_psp: ep=0x%x, data=%s", pk.endpoint, fmt::buf_to_hexstring(reinterpret_cast<const u8*>(&pk), pk.totalLen));
+
+		if (m_pending_bulk_in && take_in_data(m_bulk_in, m_pending_size, m_pending_buf, m_pending_bulk_in))
+		{
+			m_pending_bulk_in->expected_time = get_timestamp();
+			m_pending_bulk_in = nullptr;
+		}
 		m_in_request_since[0] = 0; // answered, the next poll may ask again
 		return true;
 	case PSPCM_EP_INTERRUPT_IN:
 		m_interrupt_in.push(pk);
+		psp_log.error("        add_from_psp: ep=0x%x, data=%s", pk.endpoint, fmt::buf_to_hexstring(reinterpret_cast<const u8*>(&pk), pk.totalLen));
 		m_in_request_since[1] = 0;
 		return true;
 	}
@@ -311,7 +325,7 @@ void usb_device_psp::add_data(u8 endpoint, u32 buf_size, u8* buf)
 		pk.endpoint = endpoint;
 		if (buf && len)
 		{
-			std::memcpy(pk.bulk.data, buf + pos, len);
+			std::memcpy(pk.bulk_data, buf + pos, len);
 		}
 		m_out_data.push(pk);
 
