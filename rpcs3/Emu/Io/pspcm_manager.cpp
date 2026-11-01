@@ -39,6 +39,8 @@ namespace
 	constexpr int PSPCM_SEND_FLAGS = MSG_NOSIGNAL; // a closed peer must not raise SIGPIPE
 #endif
 
+	pspcm_socket_t to_socket(s64 s) { return static_cast<pspcm_socket_t>(s); }
+
 	// The socket is non blocking, so wait for it when its buffer is full.
 	bool pspcm_send_all(pspcm_socket_t s, const char* data, int size)
 	{
@@ -63,6 +65,13 @@ namespace
 		}
 		return true;
 	}
+
+	// A packet is as long as it says in its header.
+	bool pspcm_send_packet(pspcm_socket_t s, const pspcm_data& pk)
+	{
+		const int len = std::min<int>(pk.totalLen, sizeof(pk));
+		return pspcm_send_all(s, reinterpret_cast<const char*>(&pk), len);
+	}
 }
 
 pspcm_manager::pspcm_manager(connect_fn connect, disconnect_fn disconnect)
@@ -85,14 +94,14 @@ void pspcm_manager::close_server()
 {
 	if (m_server_socket != static_cast<s64>(PSPCM_INVALID_SOCKET))
 	{
-		shutdown(static_cast<pspcm_socket_t>(m_server_socket), 2 /* both directions */);
-		pspcm_close_socket(static_cast<pspcm_socket_t>(m_server_socket));
+		shutdown(to_socket(m_server_socket), 2 /* both directions */);
+		pspcm_close_socket(to_socket(m_server_socket));
 		m_server_socket = static_cast<s64>(PSPCM_INVALID_SOCKET);
 	}
 	m_stream.clear();
 }
 
-int pspcm_manager::start_server()
+bool pspcm_manager::start_server()
 {
 	struct addrinfo hints{};
 	struct addrinfo* info = nullptr;
@@ -103,7 +112,7 @@ int pspcm_manager::start_server()
 	if (getaddrinfo("127.0.0.1", "27015", &hints, &info) != 0 || !info)
 	{
 		pspcm_log.error("pspcm_manager: getaddrinfo error");
-		return -1;
+		return false;
 	}
 
 	const pspcm_socket_t s = socket(info->ai_family, info->ai_socktype, info->ai_protocol);
@@ -111,7 +120,7 @@ int pspcm_manager::start_server()
 	{
 		pspcm_log.error("pspcm_manager: Error creating socket");
 		freeaddrinfo(info);
-		return -2;
+		return false;
 	}
 
 	if (connect(s, info->ai_addr, static_cast<int>(info->ai_addrlen)) != 0)
@@ -119,7 +128,7 @@ int pspcm_manager::start_server()
 		// PPSSPP isn't listening (yet), this is retried
 		freeaddrinfo(info);
 		pspcm_close_socket(s);
-		return -3;
+		return false;
 	}
 	freeaddrinfo(info);
 
@@ -136,18 +145,17 @@ int pspcm_manager::start_server()
 
 	m_server_socket = static_cast<s64>(s);
 	m_stream.clear();
-	return 0;
+	return true;
 }
 
 void pspcm_manager::disconnect()
 {
-	if (!m_device_connected)
+	if (!m_psp_dev)
 	{
 		return;
 	}
 
 	pspcm_log.notice("pspcm_manager: PSP disconnected");
-	m_device_connected = false;
 	close_server();
 
 	m_disconnect(m_psp_dev);
@@ -180,6 +188,19 @@ bool pspcm_manager::take_packet(pspcm_data& pk)
 	return false;
 }
 
+// Reads what the PSP sent into the stream. 1: something came, 0: nothing yet, -1: the connection is closed.
+int pspcm_manager::receive()
+{
+	char buf[512];
+	const int ret = static_cast<int>(recv(to_socket(m_server_socket), buf, sizeof(buf), 0));
+	if (ret > 0)
+	{
+		m_stream.insert(m_stream.end(), buf, buf + ret);
+		return 1;
+	}
+	return (ret == 0 || !pspcm_would_block()) ? -1 : 0;
+}
+
 void pspcm_manager::process_stream()
 {
 	pspcm_data pk{};
@@ -195,8 +216,6 @@ void pspcm_manager::process_stream()
 // A standard device to host control request, before the device is plugged. out = the data of the reply.
 bool pspcm_manager::control_in(u8 request, u16 value, u16 index, std::vector<u8>& out)
 {
-	const pspcm_socket_t s = static_cast<pspcm_socket_t>(m_server_socket);
-
 	pspcm_data pk{};
 	pk.magic = PSPCM_MAGIC;
 	pk.totalLen = static_cast<u8>(PSPCM_CTRL_HEADER_LEN);
@@ -206,20 +225,14 @@ bool pspcm_manager::control_in(u8 request, u16 value, u16 index, std::vector<u8>
 	pk.ctrl.wValue = value;
 	pk.ctrl.wIndex = index;
 	pk.ctrl.wLength = PSPCM_MAX_DATA;
-	if (!pspcm_send_all(s, reinterpret_cast<const char*>(&pk), PSPCM_CTRL_HEADER_LEN))
+	if (!pspcm_send_packet(to_socket(m_server_socket), pk))
 	{
 		return false;
 	}
 
 	for (u32 retry = 0; retry < PSPCM_CTRL_TIMEOUT_MS && thread_ctrl::state() != thread_state::aborting; retry++)
 	{
-		char buf[512];
-		const int ret = static_cast<int>(recv(s, buf, sizeof(buf), 0));
-		if (ret > 0)
-		{
-			m_stream.insert(m_stream.end(), buf, buf + ret);
-		}
-		else if (ret == 0 || !pspcm_would_block())
+		if (receive() < 0)
 		{
 			return false;
 		}
@@ -297,9 +310,9 @@ void pspcm_manager::operator()()
 {
 	while (thread_ctrl::state() != thread_state::aborting)
 	{
-		if (!m_device_connected)
+		if (!m_psp_dev)
 		{
-			if (start_server() == 0)
+			if (start_server())
 			{
 				pspcm_log.notice("pspcm_manager: connected to PPSSPP");
 				// What the device is comes from the PSP, the built-in descriptors are the fallback.
@@ -310,7 +323,12 @@ void pspcm_manager::operator()()
 					pspcm_log.warning("pspcm_manager: no descriptors from the PSP, using the built-in ones");
 				}
 				m_psp_dev = m_connect(have_desc ? &desc : nullptr);
-				m_device_connected = true;
+				if (!m_psp_dev)
+				{
+					pspcm_log.error("pspcm_manager: the device couldn't be plugged in");
+					close_server();
+					std::this_thread::sleep_for(200ms);
+				}
 			}
 			else
 			{
@@ -319,35 +337,24 @@ void pspcm_manager::operator()()
 			continue;
 		}
 
-		const pspcm_socket_t s = static_cast<pspcm_socket_t>(m_server_socket);
-
 		// To the PSP
 		pspcm_data pk{};
 		bool failed = false;
 		while (!failed && m_psp_dev->get_output(pk))
 		{
-			const int len = std::min<int>(pk.totalLen, sizeof(pk));
-			if (!pspcm_send_all(s, reinterpret_cast<const char*>(&pk), len))
-			{
-				failed = true;
-			}
+			failed = !pspcm_send_packet(to_socket(m_server_socket), pk);
 		}
 
-		// From the PSP. 0 is the peer closing the connection, which the sends alone don't tell.
-		char buf[512];
+		// From the PSP. Closing the connection is only seen here, the sends alone don't tell.
 		while (!failed)
 		{
-			const int ret = static_cast<int>(recv(s, buf, sizeof(buf), 0));
-			if (ret > 0)
+			const int received = receive();
+			failed = received < 0;
+			if (received <= 0)
 			{
-				m_stream.insert(m_stream.end(), buf, buf + ret);
-				process_stream();
-			}
-			else
-			{
-				failed = ret == 0 || !pspcm_would_block();
 				break;
 			}
+			process_stream();
 		}
 
 		if (failed)

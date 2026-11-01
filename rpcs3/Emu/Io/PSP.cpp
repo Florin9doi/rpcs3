@@ -1,9 +1,5 @@
 #include "stdafx.h"
 #include "PSP.h"
-#include "Emu/IdManager.h"
-#include "Emu/Cell/lv2/sys_usbd.h"
-#include "Emu/system_config.h"
-#include "Input/pad_thread.h"
 #include <Utilities/Thread.h>
 #include <algorithm>
 #include <cstring>
@@ -70,7 +66,7 @@ usb_device_psp::usb_device_psp(const std::array<u8, 7>& location, const pspcm_de
 	{
 		psp_log.error("usb_device_psp: the descriptors of the PSP are not valid, using the built-in ones");
 	}
-	psp_log.error("usb_device_psp::usb_device_psp()");
+	psp_log.trace("usb_device_psp::usb_device_psp()");
 }
 
 bool usb_device_psp::load_descriptors(const pspcm_descriptors& desc)
@@ -105,7 +101,7 @@ bool usb_device_psp::load_descriptors(const pspcm_descriptors& desc)
 
 usb_device_psp::~usb_device_psp()
 {
-	psp_log.error("usb_device_psp::~usb_device_psp()");
+	psp_log.trace("usb_device_psp::~usb_device_psp()");
 }
 
 void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue, u16 wIndex, u16 wLength, u32 buf_size, u8* buf, UsbTransfer* transfer)
@@ -115,7 +111,7 @@ void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue,
 	transfer->expected_result = HC_CC_NOERR;
 	transfer->expected_time = get_timestamp();
 
-	psp_log.error("control_transfer: bmRequestType=%x, bRequest=%x, wLength=%x", bmRequestType, bRequest, wLength);
+	psp_log.trace("control_transfer: bmRequestType=%x, bRequest=%x, wLength=%x", bmRequestType, bRequest, wLength);
 
 	switch (bmRequestType)
 	{
@@ -161,7 +157,7 @@ void usb_device_psp::control_transfer(u8 bmRequestType, u8 bRequest, u16 wValue,
 			transfer->expected_count = len;
 		}
 
-		psp_log.error("    get_response reqType=%x  bRequest=%x, wLength=%x, len=%x", resp.ctrl.bmRequestType, resp.ctrl.bRequest, resp.ctrl.wLength, transfer->expected_count);
+		psp_log.trace("    get_response reqType=%x  bRequest=%x, wLength=%x, len=%x", resp.ctrl.bmRequestType, resp.ctrl.bRequest, resp.ctrl.wLength, transfer->expected_count);
 		break;
 	}
 	default:
@@ -180,7 +176,7 @@ bool usb_device_psp::take_in_data(pspcm_queue& queue, u32 buf_size, u8* buf, Usb
 
 	const u32 payload = pk.totalLen > PSPCM_HEADER_LEN ? std::min<u32>(pk.totalLen - PSPCM_HEADER_LEN, PSPCM_MAX_DATA) : 0;
 	const u32 len = std::min(payload, buf_size);
-	psp_log.error("    interrupt_transfer: in : ep=%02x, len=0x%x", pk.endpoint, len);
+	psp_log.trace("    interrupt_transfer: in : ep=%02x, len=0x%x", pk.endpoint, len);
 
 	if (buf && len)
 	{
@@ -225,25 +221,22 @@ void usb_device_psp::interrupt_transfer(u32 buf_size, u8* buf, u32 endpoint, Usb
 	transfer->expected_count = 0;
 	transfer->expected_time = get_timestamp() + 1000;
 
-	psp_log.error("interrupt_transfer: ep=0x%x, buf_size=0x%x", endpoint, buf_size);
+	psp_log.trace("interrupt_transfer: ep=0x%x, buf_size=0x%x", endpoint, buf_size);
 	switch (endpoint)
 	{
 	case PSPCM_EP_BULK_IN: // 0x81
-		if (!take_in_data(m_bulk_in, buf_size, buf, transfer))
-		{
-			request_in(endpoint, buf_size);
-			//transfer->expected_result = EHCI_CC_HALTED;
-			//transfer->expected_count = 0;
-			transfer->expected_time = get_timestamp() + (5 * 1000 * 1000); // 5 sec
-			m_pending_bulk_in = transfer;
-			m_pending_size = buf_size;
-			m_pending_buf = buf;
-		}
-		break;
 	case PSPCM_EP_INTERRUPT_IN: // 0x83
-		if (!take_in_data(m_interrupt_in, buf_size, buf, transfer))
+		if (!take_in_data(m_in_queue[in_endpoint_index(endpoint)], buf_size, buf, transfer))
 		{
 			request_in(endpoint, buf_size);
+			if (endpoint == PSPCM_EP_BULK_IN)
+			{
+				// The transfer stays open until the PSP answers (add_from_psp), the interrupt one is polled again.
+				transfer->expected_time = get_timestamp() + (5 * 1000 * 1000); // 5 sec
+				m_pending_bulk_in = transfer;
+				m_pending_size = buf_size;
+				m_pending_buf = buf;
+			}
 		}
 		break;
 	case PSPCM_EP_BULK_OUT: // 0x02
@@ -266,21 +259,20 @@ bool usb_device_psp::add_from_psp(const pspcm_data& pk)
 		m_ctrl_resp.push(pk);
 		return true;
 	case PSPCM_EP_BULK_IN:
-		m_bulk_in.push(pk);
-		psp_log.error("        add_from_psp: ep=0x%x, data=%s", pk.endpoint, fmt::buf_to_hexstring(reinterpret_cast<const u8*>(&pk), pk.totalLen));
+	case PSPCM_EP_INTERRUPT_IN:
+	{
+		const int index = in_endpoint_index(pk.endpoint);
+		m_in_queue[index].push(pk);
+		psp_log.trace("        add_from_psp: ep=0x%x, data=%s", pk.endpoint, fmt::buf_to_hexstring(reinterpret_cast<const u8*>(&pk), pk.totalLen));
 
-		if (m_pending_bulk_in && take_in_data(m_bulk_in, m_pending_size, m_pending_buf, m_pending_bulk_in))
+		if (pk.endpoint == PSPCM_EP_BULK_IN && m_pending_bulk_in && take_in_data(m_in_queue[index], m_pending_size, m_pending_buf, m_pending_bulk_in))
 		{
 			m_pending_bulk_in->expected_time = get_timestamp();
 			m_pending_bulk_in = nullptr;
 		}
-		m_in_request_since[0] = 0; // answered, the next poll may ask again
+		m_in_request_since[index] = 0; // answered, the next poll may ask again
 		return true;
-	case PSPCM_EP_INTERRUPT_IN:
-		m_interrupt_in.push(pk);
-		psp_log.error("        add_from_psp: ep=0x%x, data=%s", pk.endpoint, fmt::buf_to_hexstring(reinterpret_cast<const u8*>(&pk), pk.totalLen));
-		m_in_request_since[1] = 0;
-		return true;
+	}
 	}
 	return false;
 }

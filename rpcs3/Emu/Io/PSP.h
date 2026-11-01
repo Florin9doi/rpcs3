@@ -119,11 +119,11 @@ public:
 private:
 	pspcm_queue m_out_data; // common for ctrl ep and bulk requests
 	pspcm_queue m_ctrl_resp;
-	pspcm_queue m_bulk_in;
-	pspcm_queue m_interrupt_in;
-	UsbTransfer* m_pending_bulk_in;
-	u32 m_pending_size;
-	u8* m_pending_buf;
+	pspcm_queue m_in_queue[2]; // what the PSP sent on the IN endpoints (0: bulk, 1: interrupt)
+	// The bulk IN transfer that waits for the PSP to answer, and where the answer goes.
+	UsbTransfer* m_pending_bulk_in = nullptr;
+	u32 m_pending_size = 0;
+	u8* m_pending_buf = nullptr;
 	// When the request for an IN endpoint (0: bulk, 1: interrupt) was sent, 0 if none is waiting.
 	std::atomic<s64> m_in_request_since[2]{};
 	static int in_endpoint_index(u32 endpoint) { return endpoint == PSPCM_EP_BULK_IN ? 0 : 1; }

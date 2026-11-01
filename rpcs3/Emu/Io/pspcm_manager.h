@@ -28,19 +28,19 @@ public:
 	static constexpr auto thread_name = "UsbPspCm manager"sv;
 
 private:
-	int start_server();
+	bool start_server();
 	void close_server();
 	void disconnect();
 	void process_stream();
 	bool take_packet(pspcm_data& pk);
+	int receive();
 	bool control_in(u8 request, u16 value, u16 index, std::vector<u8>& out);
 	bool fetch_descriptors(pspcm_descriptors& desc);
 
 	connect_fn m_connect;
 	disconnect_fn m_disconnect;
 
-	bool m_device_connected = false;
 	s64 m_server_socket = -1; // SOCKET or fd, -1 when there is none
 	std::vector<u8> m_stream; // received bytes not yet forming a whole packet
-	std::shared_ptr<usb_device_psp> m_psp_dev;
+	std::shared_ptr<usb_device_psp> m_psp_dev; // set while a PSP is connected
 };
